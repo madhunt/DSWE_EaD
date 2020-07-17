@@ -5,7 +5,7 @@ import getpass
 
 import requests
 import os
-
+import urllib.request
 
 #def search_scenes(dataset, **kwargs):
     # latitude=None, longitude=None, bbox=None, months=None,
@@ -50,10 +50,13 @@ def download_all_scenes(output_dir, dataset, product, **kwargs):
 
         entity_id = scene['entityId']
 
+        filename = os.path.join(output_dir, entity_id)
+
         response = api.download(dataset, product, entity_id)
-        print(response[0]['url'])
-
-
+        url = response[0]['url']
+        
+        urllib.request.urlretrieve(url, filename)
+        
     return
 
 
@@ -64,6 +67,9 @@ product = 'DSWE'
 latitude = 41.4626 
 longitude = -82.9960 
 max_results = 1
+
+os.makedirs(output_dir, exist_ok=True)
+
 
 
 download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, max_results=max_results)
