@@ -17,10 +17,11 @@ class API(object):
         self.endpoint = f'https://earthexplorer.usgs.gov/inventory/json/v/{version}/'
         self.key = self.login(username, password)
 
+
     def request(self, request_code, **kwargs):
         url = self.endpoint + request_code
 
-        if 'apiKey' is not in kwargs:
+        if 'apiKey' not in kwargs:
             kwargs.update(apiKey=self.key)
 
         params = json_request_format(**kwargs)
@@ -46,7 +47,7 @@ class API(object):
         if error:
             raise Exception(f'Error raised by EarthExplorer API: {error}')
 
-        return reponse['data']
+        return response['data']
 
     def logout(self):
         self.request('logout')
@@ -118,6 +119,26 @@ class API(object):
 
         results = response['data']
         return results
+
+
+
+    def download(self, dataset, download_code, entity_ids):
+        '''
+        INPUTS:
+            dataset : 
+            download_code : str : 
+                this is the download code given by 'download options' (response['data']['downloadOptions']['downloadCode'])
+
+
+        '''
+
+        params = {'datasetName': dataset,
+                    'products': download_code,
+                    'entityIds': entity_ids}
+
+        response = self.request('download', **params)
+
+        return response
 
 
 

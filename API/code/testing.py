@@ -26,7 +26,7 @@ import os
 
     #return scenes
 
-def download_all_scenes(output_dir, dataset, **kwargs):
+def download_all_scenes(output_dir, dataset, product, **kwargs):
     download_url = 'https://earthexplorer.usgs.gov/download/{folder}/{sid}/STANDARD/EE'
 
     chunk_size = 1024
@@ -45,15 +45,28 @@ def download_all_scenes(output_dir, dataset, **kwargs):
     print(f'{len(scenes)} scenes found')
 
     for scene in scenes:
-        print(scene['downloadUrl'])
 
-        with 
+        print(scene)
+
+        entity_id = scene['entityId']
+
+        response = api.download(dataset, product, entity_id)
+        print(response[0]['url'])
+
 
     return
 
 
+output_dir = './data_test/'
+dataset = 'SP_TILE_DSWE'
+product = 'DSWE'
+
+latitude = 41.4626 
+longitude = -82.9960 
+max_results = 1
 
 
+download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, max_results=max_results)
 
 
     
