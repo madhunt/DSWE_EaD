@@ -1,22 +1,22 @@
-
+'''
+EarthExplorer API
+Large parts of this code are based on:
+    https://github.com/yannforget/landsatxplore
+    MIT License
+'''
 
 import requests
 import json
-
 from datamodels import spatial_filter, temporal_filter
-
 
 def json_request_format(**kwargs):
     return {'jsonRequest': json.dumps(kwargs)}
 
-
 class API(object):
-
     def __init__(self, username, password, version='1.4.1'):
         self.version = version
         self.endpoint = f'https://earthexplorer.usgs.gov/inventory/json/v/{version}/'
         self.key = self.login(username, password)
-
 
     def request(self, request_code, **kwargs):
         url = self.endpoint + request_code
@@ -58,6 +58,19 @@ class API(object):
                 include_unknown_cloud_cover=True, min_cloud_cover=0, max_cloud_cover=100,
                 additional_criteria=None, max_results=20):
         '''
+    INPUTS: 
+        dataset : str : dataset name
+        latitude : float, optional : decimal degree coordinate in EPSG:4326 projection
+        longitude : float, optional : decimal degree coordinate in EPSG:4326 projection
+        bbox : tuple, optional : (xmin, ymin, xmax, ymax) of the bounding box
+        months : list of int, optional : limit results to specific months (1-12)
+        start_date : str, optional : YYYY-MM-DD
+        end_date : str, optional : YYYY-MM-DD; defaults to start_date if not given
+        include_unknown_cloud_cover : bool, optional : defaults to False
+        min_cloud_cover : int, optional : min cloud cover percentage (0-100); defaults to 0
+        max_cloud_cover : int, optional : max cloud cover percentage (0-100); defaults to 100
+        additional_criteria : list, optional : currently not supported
+        max_results : int, optional : max number of results displayed; defaults to 20
         '''
         params = {'datasetName': dataset,
                 'includeUnknownCloudCover': include_unknown_cloud_cover,
@@ -137,12 +150,11 @@ class API(object):
 
         return response
 
-
-
-
-
-
-
+    def download_options(self ):
+        '''
+        This function will provide download options metadata, including the "downloadCode" needed to put in as the "product" when downloading files
+        '''
+        return
 
 
 

@@ -1,19 +1,31 @@
-
-
+'''
+Functions to search scenes and download data using the EarthExplorer API
+'''
 import earthExplorerAPI as eeapi
 import getpass
-
-import requests
 import os
 import urllib.request
 
 def search_scenes(dataset, **kwargs):
-    # latitude=None, longitude=None, bbox=None, months=None,
-    # start_date=None, end_date=None,
-    # include_unknown_cloud_cover=False, min_cloud_cover=0, max_cloud_cover=100,
-    # additional_criteria=None, max_results=20
-    
-
+    '''
+    Use EarthExplorer API to search for scenes
+    INPUTS: 
+        dataset : str : dataset name
+    KWARGS INCLUDE: 
+        latitude : float, optional : decimal degree coordinate in EPSG:4326 projection
+        longitude : float, optional : decimal degree coordinate in EPSG:4326 projection
+        bbox : tuple, optional : (xmin, ymin, xmax, ymax) of the bounding box
+        months : list of int, optional : limit results to specific months (1-12)
+        start_date : str, optional : YYYY-MM-DD
+        end_date : str, optional : YYYY-MM-DD; defaults to start_date if not given
+        include_unknown_cloud_cover : bool, optional : defaults to False
+        min_cloud_cover : int, optional : min cloud cover percentage (0-100); defaults to 0
+        max_cloud_cover : int, optional : max cloud cover percentage (0-100); defaults to 100
+        additional_criteria : list, optional : currently not supported
+        max_results : int, optional : max number of results displayed; defaults to 20
+    RETURNS: 
+        scenes : list of dict : search results displayed in a list of dicts with metadata
+    '''
 
     # get login information
     username = getpass.getpass(prompt='ERS Username:')
@@ -22,41 +34,36 @@ def search_scenes(dataset, **kwargs):
 
     api = eeapi.API(username, password)
 
-
-
-    #api.logout()
-
-
     scenes = api.search(dataset, **kwargs)
 
     print(f'{len(scenes)} scenes found')
 
+    api.logout()
+
     return scenes
 
 def download_all_scenes(output_dir, dataset, product, **kwargs):
+    '''
+    Use EarthExplorer API to search and download scenes as tar files.
 
-    #scenes = search_scenes(dataset, **kwargs)
+    '''
 
     # get login information
-    #username = getpass.getpass(prompt='ERS Username:')
+    username = getpass.getpass(prompt='ERS Username:')
     #print(f'ERS Username: {username}')
-    #password = getpass.getpass()
+    password = getpass.getpass()
 
-    #api = eeapi.API(username, password)
+    api = eeapi.API(username, password)
 
-    #scenes = api.search(dataset, **kwargs)
-    
-    
-
-    scenes = search_scenes(dataset, **kwargs)
+    scenes = api.search(dataset, **kwargs)
 
     print(f'{len(scenes)} scenes found')
     
     os.makedirs(output_dir, exist_ok=True)
-
+    
+    i = 1
     for scene in scenes:
-
-        print(scene)
+        print(f'Downloading scene {i} of {len(scenes)}')
 
         entity_id = scene['entityId']
 
@@ -66,25 +73,27 @@ def download_all_scenes(output_dir, dataset, product, **kwargs):
         url = response[0]['url']
         
         urllib.request.urlretrieve(url, filename)
+
+        i += 1
        
     api.logout()
 
     return
 
 
+# example code to download the first 20 search results for DSWE datasets from Winous Point Marsh, Bay Twonship, OH 43452
 output_dir = './data_test1/'
-dataset = 'SP_TILE_DSWE'
-product = 'DSWE'
+dataset = 'SP_TILE_DSWE' # this magic string is for DSWE datasets
+product = 'DSWE' # this magic string is also for DSWE datasets
+
+#TODO add function to API class to enable searching for dataset and product (downloadCode) strings
 
 latitude = 41.4626 
 longitude = -82.9960 
-max_results = 1
-
+max_results = 20
 
 download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, max_results=max_results)
 
 
-    
-
-
+#TODO automate untar-ing files (note to windows users: 7-zip should support untar-ing files until I add this feature)
 
