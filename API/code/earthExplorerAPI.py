@@ -120,15 +120,12 @@ class API(object):
         results = response['data']
         return results
 
-
-
     def download(self, dataset, download_code, entity_ids):
         '''
         INPUTS:
             dataset : 
             download_code : str : 
                 this is the download code given by 'download options' (response['data']['downloadOptions']['downloadCode'])
-
 
         '''
 
