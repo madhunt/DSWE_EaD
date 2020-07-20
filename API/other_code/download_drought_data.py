@@ -1,77 +1,80 @@
-'''
-Example scripts showing how to download data 
-from the US Drought Monitor:
+''' 
+Function for downloading JSON data from the US Drought Monitor
 https://droughtmonitor.unl.edu/
-
-For a full list of posssible values for parameters, go to:
-https://droughtmonitor.unl.edu/WebServiceInfo.aspx
 '''
-from request_drought_data import download_data
 
-'''
-COMPREHENSIVE STATISTICS
-Example: statistics for total area in drought for both the 
-continental US and the total US between Jan 1 2012 and 
-Jan 1 2013 in traditional format; for a full list of values,
-go to:
-https://droughtmonitor.unl.edu/WebServiceInfo.aspx
-'''
-output_file = 'comprehensive.json'
-start_date = '1/1/2012'
-end_date = '1/1/2013'
-area_of_interest = 'us'
-area = 'USStatistics'
-statistics_type = 'GetDroughtSeverityStatisticsByArea'
-statistics_format = '1'
+import requests
+import json
 
-response = download_data(output_file, start_date, end_date,
-                        area_of_interest, 
-                        area=area,
-                        statistics_type=statistics_type, 
-                        statistics_format=statistics_format)
+def download_data(output_file, start_date, end_date, area_of_interest,
+                        area=None, statistics_type=None, statistics_format=None,
+                        drought_level=None, min_threshold=None, max_threshold=None, min_weeks=None):
+    '''
+    INPUTS:
+        start_date : str : start date in format M/D/YYYY 
+        end_date : str : end date in format M/D/YYYY
+        area_of_interest : str : national, regional, states, or counties;
+        area : str, optional : type of area 
+        statistics_type : str, optional : area, percent of area, population, or percent of population
+        statistics_format : str, optional : traditional ('1') or categorical ('2')
+        drought_level : str, optional : drought level
+        min_threshold : str, optional : minimum drought threshold level
+        max_threshold : str, optional : maximum drought threshold level
+        min_weeks : str, optional : minimum number of weeks in drought
+    RETURNS:
 
-'''
-STATISTICS BY THRESHOLD
-Example: statistics for percent of area in drought for the 
-total US between Jan 1 2012 and Jan 1 2013 in 
-traditional format, where the min percent of D1 is 10% and 
-the max percent is 70%
-'''
-output_file = 'threshold.json'
-start_date = '1/1/2012'
-end_date = '1/1/2013'
-area_of_interest = 'total'
-area = 'USStatistics'
-drought_level = '1'
-min_threshold = '10'
-max_threshold = '70'
-statistics_type = 'GetDroughtSeverityStatisticsByAreaPercent' 
-statistics_format = '1'
+    NOTE: for more information on formatting of input strings, 
+        go to https://droughtmonitor.unl.edu/WebServiceInfo.aspx
+    '''
+    #TODO can add a check to make sure date is in M/D/YYYY format
 
-response = download_data(output_file, start_date, end_date,
-                        area_of_interest, 
-                        area=area,
-                        drought_level=drought_level,
-                        min_threshold=min_threshold,
-                        max_threshold=max_threshold,
-                        statistics_type=statistics_type,
-                        statistics_format=statistics_format)
+    if statistics_format and statistics_format not in ['1','2']:
+        raise Exception('Not a valid statistics format: {statistics_format}. Must choose 1 (traditional) or 2 (categorical).')
 
-'''
-WEEKS IN DROUGHT
-Example: counties in Nebraska that were in drought for at 
-least 4 weeks (not necessarially consecutively) between 
-Jan 1 2012 and Jan 1 2013
-'''
-output_file = 'weeks.json'
-start_date = '1/1/2012'
-end_date = '1/1/2013'
-area_of_interest = 'NE'
-drought_level = '0'
-min_weeks = '4'
+    if area == None and statistics_type == None:
+        # Weeks in Drought
+        area = 'ConsecutiveNonConsecutiveStatistics'
+        statistics_type = 'GetNonConsecutiveStatisticsCounty'
 
-response = download_data(output_file, start_date, end_date,
-                        area_of_interest,
-                        drought_level=drought_level,
-                        min_weeks=min_weeks)
+        url_mid = f'&dx={drought_level}&minimumweeks={min_weeks}' 
+        url_end = ''
 
+    elif min_threshold != None and max_threshold != None:
+        # Statistics by Threshold
+        url_mid = f'&dx={drought_level}&DxLevelThresholdFrom={min_threshold}&DxLevelThresholdTo={max_threshold}' 
+        url_end = f'&statisticsType={statistics_format}'
+
+    else:
+        # Comprehensive Statistics
+        url_mid = ''
+        url_end = f'&statisticsType={statistics_format}' 
+
+    base_url = f'https://usdmdataservices.unl.edu/api/{area}/{statistics_type}?aoi={area_of_interest}'
+    url_time = f'&startdate={start_date}&enddate={end_date}'
+    endpoint = base_url + url_mid + url_time + url_end
+
+
+    print(endpoint)
+
+    response = requests.get(endpoint)
+
+    status = response.status_code
+    if not status in range(200,299):
+        raise Exception(f'Uh oh; status code is: {status}')
+
+    if '.json' not in output_file:
+        output_file = output_file.json
+
+    with open(output_file, 'w') as f:
+        json.dump(response.json(), f)
+
+    return
+
+
+#output_file = './myfile.json'
+
+#response = download_json_data(output_file, '1/1/2012', '1/1/2013', 'us',
+#                        area='USStatistics', statistics_type='GetDroughtSeverityStatisticsByArea', statistics_format='1',
+#                        drought_level=None, min_threshold=None, max_threshold=None, min_weeks=None)
+
+#print(response)
