@@ -1,16 +1,25 @@
-# example code to download the first 20 search results for DSWE datasets from Winous Point Marsh, Bay Twonship, OH 43452
+
+
+from use_api import download_all_scenes
+
+
+
+# example code to download all search results for DSWE datasets from Winous Point Marsh, Bay Twonship, OH 43452
 output_dir = './data_test1/'
 dataset = 'SP_TILE_DSWE' # this magic string is for DSWE datasets
 product = 'DSWE' # this magic string is also for DSWE datasets
 
-#TODO add function to API class to enable searching for dataset and product (downloadCode) strings
+
 
 latitude = 41.4626 
 longitude = -82.9960 
-max_results = 20
+max_results = 40000
 
-download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, max_results=max_results)
+include_unknown_cloud_cover = True
 
 
-#TODO automate untar-ing files (note to windows users: 7-zip should support untar-ing files until I add this feature)
+
+download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, min_cloud_cover=0, max_cloud_cover=70, max_results=max_results)
+
+
 

@@ -6,6 +6,9 @@ import getpass
 import os
 import urllib.request
 
+import time
+
+
 def search_scenes(dataset, **kwargs):
     '''
     Use EarthExplorer API to search for scenes
@@ -62,6 +65,9 @@ def download_all_scenes(output_dir, dataset, product, **kwargs):
     os.makedirs(output_dir, exist_ok=True)
     
     i = 1
+
+    start_time = time.time()
+
     for scene in scenes:
         print(f'Downloading scene {i} of {len(scenes)}')
 
@@ -75,6 +81,7 @@ def download_all_scenes(output_dir, dataset, product, **kwargs):
         urllib.request.urlretrieve(url, filename)
 
         i += 1
+        print(time.time() - start_time, ' seconds to download')
        
     api.logout()
 
