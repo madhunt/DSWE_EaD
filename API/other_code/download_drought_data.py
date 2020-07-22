@@ -2,15 +2,16 @@
 Function for downloading JSON data from the US Drought Monitor
 https://droughtmonitor.unl.edu/
 '''
-
 import requests
 import json
+
 
 def download_data(output_file, start_date, end_date, area_of_interest,
                         area=None, statistics_type=None, statistics_format=None,
                         drought_level=None, min_threshold=None, max_threshold=None, min_weeks=None):
     '''
     INPUTS:
+        output_file : str : path to and name of output file
         start_date : str : start date in format M/D/YYYY 
         end_date : str : end date in format M/D/YYYY
         area_of_interest : str : national, regional, states, or counties;
@@ -22,12 +23,10 @@ def download_data(output_file, start_date, end_date, area_of_interest,
         max_threshold : str, optional : maximum drought threshold level
         min_weeks : str, optional : minimum number of weeks in drought
     RETURNS:
-
+        data downloaded in JSON format
     NOTE: for more information on formatting of input strings, 
         go to https://droughtmonitor.unl.edu/WebServiceInfo.aspx
     '''
-    #TODO can add a check to make sure date is in M/D/YYYY format
-
     if statistics_format and statistics_format not in ['1','2']:
         raise Exception('Not a valid statistics format: {statistics_format}. Must choose 1 (traditional) or 2 (categorical).')
 
@@ -49,13 +48,12 @@ def download_data(output_file, start_date, end_date, area_of_interest,
         url_mid = ''
         url_end = f'&statisticsType={statistics_format}' 
 
+    # create endpoint url
     base_url = f'https://usdmdataservices.unl.edu/api/{area}/{statistics_type}?aoi={area_of_interest}'
     url_time = f'&startdate={start_date}&enddate={end_date}'
     endpoint = base_url + url_mid + url_time + url_end
 
-
-    print(endpoint)
-
+    # request data
     response = requests.get(endpoint)
 
     status = response.status_code
@@ -63,18 +61,11 @@ def download_data(output_file, start_date, end_date, area_of_interest,
         raise Exception(f'Uh oh; status code is: {status}')
 
     if '.json' not in output_file:
-        output_file = output_file.json
-
+        output_file = output_file + '.json'
+    
+    # download data
     with open(output_file, 'w') as f:
         json.dump(response.json(), f)
 
     return
 
-
-#output_file = './myfile.json'
-
-#response = download_json_data(output_file, '1/1/2012', '1/1/2013', 'us',
-#                        area='USStatistics', statistics_type='GetDroughtSeverityStatisticsByArea', statistics_format='1',
-#                        drought_level=None, min_threshold=None, max_threshold=None, min_weeks=None)
-
-#print(response)
