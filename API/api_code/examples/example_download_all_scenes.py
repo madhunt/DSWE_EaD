@@ -5,10 +5,10 @@ Example code to download all search results for DSWE datasets from Winous Point 
 import sys
 sys.path.insert(1, '../')
 
-from use_api import download_all_scenes
+from use_api import download_all_scenes, untar
 
 # output directory for downloaded data
-output_dir = '../../proportions/data_test/DSWE_Out/'
+output_dir = '../../../proportions/data_test/DSWE_out/'
 
 # if using DSWE datasets, keep these two variables the saem
 dataset = 'SP_TILE_DSWE' 
@@ -26,5 +26,7 @@ max_results = 20 # e.g. only give the first 20 search results
 # call the function in use_api.py with the relevant parameters
 download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, months=months, start_date=start_date, end_date=end_date, max_results=max_results)
 
+# untar the downloaded files in the same directory
+untar(output_dir)
 
 
