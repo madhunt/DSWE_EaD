@@ -57,7 +57,7 @@ class API(object):
         error = response['error']
         if error:
             raise Exception(f'Error raised by EarthExplorer API: {error}')
-        
+
         key = response['data']
         return key
 

@@ -31,27 +31,9 @@ import datetime
 import glob
 import sys
 
-
-input_dir = os.path.join('data_test', 'DSWE_out')
-start_year = 2010
-end_year = 2020
+import proportions_utils as utils
 
 
-def make_dirs(input_dir, folder):
-    #XXX neaten this up 
-
-    wdir = os.path.join(input_dir, folder)
-    os.chdir(wdir)
-    # generate output paths
-    proc_dir = os.path.join(wdir, 'processing')
-    prop_dir = os.path.join(wdir, 'proportions')
-    dec_prop_dir = os.path.join(wdir, 'dec_proportions')
-    # make directories if they don't exist yet
-    os.makedirs(proc_dir, exist_ok=True)
-    os.makedirs(prop_dir, exist_ok=True)
-    os.makedirs(dec_prop_dir, exist_ok=True)
-    print('directories made', datetime.datetime.now())
-    return wdir, proc_dir, prop_dir, dec_prop_dir
 
 def find_max_extent(raster, max_extent):
     #XXX neaten and prob do better
@@ -89,11 +71,8 @@ def reclassify_interp_layer(interp):
 
 
 
-
-
-
-
 def proportions_calculations(wdir, proc_dir, prop_dir, dec_prop_dir):
+    count += 1
     # create list to hold rasters
     driver = gdal.GetDriverByName('GTiff')
     all_rasters = []
@@ -121,10 +100,10 @@ def proportions_calculations(wdir, proc_dir, prop_dir, dec_prop_dir):
         # if stmts
 
         #TODO madeline make sure this is eorking and makes sense
-        M_minx = minx if minx<M_minx
-        M_maxy = maxy if maxy>Mmaxy
-        M_maxx = maxx if maxx>M_maxx
-        M_miny = miny if miny<M_miny
+        M_minx = minx if minx<M_minx else M_minx
+        M_maxy = maxy if maxy>Mmaxy else M_maxy
+        M_maxx = maxx if maxx>M_maxx else M_maxx
+        M_miny = miny if miny<M_miny else M_miny
         max_extent = [M_minx, M_maxy, M_maxx, M_miny]
         #XXX prob can do it better
         max_extent = find_max_extent(raster) # function needs to get new updated M_vals every time
@@ -210,11 +189,11 @@ def proportions_calculations(wdir, proc_dir, prop_dir, dec_prop_dir):
     return
 
 def create_output_file(data, data_str, out_dir, max_geo, interp_proj, path_row, year):
-    if 'dec_proportions' is in out_dir:
+    if 'dec_proportions' in out_dir:
         data_file = os.path.join(out_dir, f'DSWE_V2_P1_{path_row}_{year[0]}_{year[1]}_{data_str}Proportion.tif')
-    elif 'processing' is in out_dir:
+    elif 'processing' in out_dir:
         data_file = os.path.join(out_dir, f'DSWE_V2_P1_{path_row}_{year}_{data_str}Sum.tif')
-    elif 'proportions' is in out_dir:
+    elif 'proportions' in out_dir:
         data_file = os.path.join(out_dir, f'DSWE_V2_P1_{path_row}_{year}_{data_str}Proportion.tif')
 
 
@@ -300,7 +279,7 @@ def decadal_calculations():
 
 
 
-def main():
+def main(input_dir, start_year, end_year):
     # set working directory
     os.chdir(input_dir)
 
@@ -310,47 +289,24 @@ def main():
     pathcount = len(paths)
     
     for folder in paths:
-        count += 1
-        wdir, proc_dir, prop_dir, dec_prop_dir = make_dirs(input_dir, folder)
+        wdir, proc_dir, prop_dir, dec_prop_dir = utils.make_dirs(input_dir, folder)
         
-        proportions_calculations(wdir, proc_dir, prop_dir, dec_prop_dir)
+        #proportions_calculations(wdir, proc_dir, prop_dir, dec_prop_dir)
 
-        decadal_calculations(start_year, end_year, proc_dir)
+        #decadal_calculations(start_year, end_year, proc_dir)
 
-    if pathcount == count:
-        print('all processing done yay')
+    #if pathcount == count:
+    #    print('all processing done yay')
 
 
     return
 
 
+input_dir = os.path.join('data_test', 'DSWE_out')
+start_year = 2010
+end_year = 2020
 
-setup(input_dir)
-
+main(input_dir, start_year, end_year)
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
