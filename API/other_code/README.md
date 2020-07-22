@@ -1,6 +1,6 @@
 # Downloading data from other sources
 
-This will be where scripts to download data from other websites will be found. Examples on how to use and run code are in the files named `example_[...]_data.py`. You should only need to change code in these files.
+This will be where scripts to download data from other websites will be found. Examples on how to use and run code are in the 'examples' directories in files named `example_[...]_data.py`. You should only need to change code in these files.
 
 
 - [US Drought Monitor](https://droughtmonitor.unl.edu/)
