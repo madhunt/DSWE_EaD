@@ -11,8 +11,6 @@ import sys
 import proportions_utils as utils
 
 main_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
-Start_yr = 1985
-End_yr = 1995
 DSWE_layer = 'INWM' #or 'INTR'
 
 #Ultimately, we’d like user input for the compilation period, that is: by month, year, semi-decade, “season”, and within month but across all years!
@@ -22,13 +20,16 @@ os.chdir(main_dir)
 
 # make a list of all DSWE files of interest
 all_files = []
+all_dates = []
 # look through all directories and subdirectories (tree)
 for dirpath, dirnames, filenames in os.walk(main_dir):
     # find all files in tree
     for filename in filenames:
         # if the file is the layer of interest
-        if DSWE_layer in filename: 
+        if DSWE_layer in filename:
             all_files.append(os.path.join(dirpath, filename))
+            file_date = int(filename[15:23])
+            all_dates.append(file_date)
 
 # make output directories
 process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir)
@@ -36,82 +37,86 @@ process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir)
 num_files = len(all_files)
 print(f'Processing {num_files} Total Scenes (All Years)')
 
+
+# initialize extent to be overwritten 
+extent_0 = [1e12, -1e12, -1e12, 1e12]
+
+# loop through all files to calculate max extent
+for file in all_files:
+    extent_0 = utils.find_max_extent(file, extent_0)
+max_extent = extent_0
+print("Max Extent calculated")
+
+
+start_date = min(all_dates) #XXX currently int YYYYMMDD -- may need to change later
+end_date = max(all_dates)
+
+##########################################################
+# ANNUAL (1 YEAR AT A TIME)
+
+# make list of years
+all_years = [int(str(i)[:4]) for i in all_dates]
+
+start_year = min(all_years)
+end_year = max(all_years)
+
+for current_year in range(start_year, end_year+1):
+    current_files = []
+    # make a list of files in the current year of interest
+    for i, file in enumerate(all_files):
+        file_year = all_years[i]
+        if file_year == current_year:
+            current_files.append(file)
+
+    # initialize arrays
+    openSW = np.zeros(shape)
+    partialSW = np.zeros(shape)
+    nonwater = np.zeros(shape)
+
+    # process files in the current year of interest
+    for file in current_files:
+        # open the file    
+        raster, MaxGeo, shape, rasterproj = utils.open_raster(file, process_dir, max_extent)
+
+        # reclassify layer and add to previous
+        openSW_new, partialSW_new, nonwater_new = utils.reclassify(raster)
+        openSW += openSW_new
+        partialSW += partialSW_new
+        nonwater += nonwater_new
+
+    # find which pixels contain data
+    contains_data = openSW + partialSW + nonwater
+
+    #TODO if it turns out that '4' in reclassify() is wrong, can just return an array with 0-->9/255 and 1-->everything esls  and that should give which pixels contain data!!
+
+    # calculate proportions open and partial surface water
+    openSWproportion = utils.calculate_proportion(openSW, containsdata)
+    partialSWproportion = utils.calculate_proportion(partialSW, containsdata)
+
+    # create output files
+    utils.create_output_file(containsdata, 'containsdata', process_dir, current_year, shape, MaxGeo, rasterproj)
+    utils.create_output_file(openSW, 'openSW', process_dir ,current_year, shape, MaxGeo, rasterproj)
+    utils.create_output_file(partialSW, 'partialSW', process_dir, current_year, shape, MaxGeo, rasterproj)
+    utils.create_output_file(nonwater, 'nonwater',process_dir, current_year, shape, MaxGeo, rasterproj)
+    
+    utils.create_output_file(openSWproportion, 'openSW', prop_dir, year, shape, MaxGeo, rasterproj)
+    utils.create_output_file(partialSWproportion, 'partialSW', prop_dir, year, shape, MaxGeo, rasterproj)
+    
+    print('Proportions completed for {current_year}')
+
+
 breakpoint()
 
+
+#Calculate proportions year by year, only searching for scenes from the year of interest
+
+
+########################################################################################
 for folder in paths:
 
     print(all_files)
 
-    # initialize extent to be overwritten 
-    extent_0 = [1e12, -1e12, -1e12, 1e12]
 
-    # Loop through rasters in list
-    for raster in all_files:
-        # calculate max extent
-        extent_0 = utils.find_max_extent(raster, extent_0)
-    max_extent = extent_0
-    print("Max Extent calculated")
-    # Get Path/Row
-    trim = raster[-50:]
-    print('trim', trim)
-    PathRow=trim[3:9] #XXX what is pathrow
-    print('path row', PathRow)
-
-    #Calculate proportions year by year, only searching for scenes from the year of interest
-    Active_yr=Start_yr
-    while Active_yr <= End_yr:
-        Year_Interp=[]
-        for raster in all_files:
-            trim = raster[-50:]
-            year = int(trim[16:20])
-            print('year',year)
-            if year == Active_yr:
-                Year_Interp.append(raster)
-                
-        num_files=len(Year_Interp)
-        if num_files>=1: #XXX unnecessary?
-            count = 0
-            for raster in Year_Interp:
-                interp, MaxGeo, shape, interpproj = utils.open_interp(raster, process_dir, max_extent)
-                #XXX orignially, interpproj was from last call of maxextent, so see if this works (doesn't make sense that it whould have worked prev)
-                if count == 0:
-                    # initialize arrays
-                    openSW = np.zeros(shape)
-                    partialSW = np.zeros(shape)
-                    nonwater = np.zeros(shape)
-                # reclassify layer and add to previous
-                openSW_new, partialSW_new, nonwater_new = utils.reclassify_interp_layer(interp)
-                openSW += openSW_new
-                partialSW += partialSW_new
-                nonwater += nonwater_new
-
-                count += 1
-                print(count, "of", num_files, "scenes processed")
-
-                if count == num_files: #XXX unnecessary?
-                    break
-
-            if count == num_files: #XXX unnecessary?
-                year=str(Active_yr)
-                #Identify pixels that contain data
-                containsdata= openSW+partialSW+nonwater
-                utils.create_output_file(containsdata, 'containsdata', process_dir, PathRow, year, shape, MaxGeo, interpproj)
-                #openSW pixels
-                utils.create_output_file(openSW, 'openSW', process_dir ,PathRow, year, shape, MaxGeo, interpproj)
-                #partialSW pixels
-                utils.create_output_file(partialSW, 'partialSW', process_dir, PathRow, year, shape, MaxGeo, interpproj)
-                #Non openSW pixels
-                utils.create_output_file(nonwater, 'nonwater',process_dir, PathRow, year, shape, MaxGeo, interpproj)
-                #Calculate openSW proportion for the year
-                openSWproportion = utils.calculate_proportion(openSW, containsdata)
-                utils.create_output_file(openSWproportion, 'openSW', prop_dir, PathRow, year, shape, MaxGeo, interpproj)
-                #Calculate partialSW proportion for the year
-                partialSWproportion = utils.calculate_proportion(partialSW, containsdata)
-                utils.create_output_file(partialSWproportion, 'partialSW', prop_dir, PathRow, year, shape, MaxGeo, interpproj)
-                print("Proportions completed for year", year)
-        Active_yr+=1
-
-########################################################################################
 
     #Decadal Proportions calculations
     del containsdata, containsdata_output, containsdata_out, openSW_output, openSW_out, partialSW_output, partialSW_out, nonwater_output, nonwater_out, openSWproportion, partialSWproportion, openSW, openSW2, partialSW, partialSW2, nonwater #XXX unnecessary?
@@ -123,48 +128,48 @@ for folder in paths:
 #    count+=1
 #    # make output directories
 #    wdir, process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir, folder)
-    # Create a list to hold our rasters
+    # Create a list to hold our files
     #driver = gdal.GetDriverByName("GTiff")
-    Active_yr=Start_yr
+    Active_yr=start_year
     Range_yr=Active_yr+4
 
     os.chdir(process_dir)
-    All_Rasters=[]
+    All_files=[]
 
-    openSW_rasters=[]
-    partialSW_rasters=[]
-    data_rasters=[]
+    openSW_files=[]
+    partialSW_files=[]
+    data_files=[]
 
-    #Identify previously created reclassified interpreted layers for processing.
+    #Identify previously created reclassified rasterreted layers for processing.
     for (dirpath, dirnames, filenames) in os.walk(process_dir):
         print(filenames)
         for filename in filenames:
-            All_Rasters.append(filename)
-            All_Rasters=[s for s in All_Rasters if s.endswith('tif')]
-            openSW_rasters=[s for s in All_Rasters if "openSWsum" in s]
-            partialSW_rasters=[s for s in All_Rasters if "partialSWsum" in s]
-            data_rasters=[s for s in All_Rasters if "containsdatasum" in s]
+            All_files.append(filename)
+            All_files=[s for s in All_files if s.endswith('tif')]
+            openSW_files=[s for s in All_files if "openSWsum" in s]
+            partialSW_files=[s for s in All_files if "partialSWsum" in s]
+            data_files=[s for s in All_files if "containsdatasum" in s]
 
     print(Active_yr, "-", Range_yr)
-    while Range_yr <= End_yr:
+    while Range_yr <= end_year:
         #Process only the semi-decadal years of interest
-        openSW_yr_rasters = utils.years_to_process(openSW_rasters)
-        partialSW_yr_rasters = utils.years_to_process(partialSW_rasters)
-        data_yr_rasters = utils.years_to_process(data_rasters)
+        openSW_yr_files = utils.years_to_process(openSW_files)
+        partialSW_yr_files = utils.years_to_process(partialSW_files)
+        data_yr_files = utils.years_to_process(data_files)
 
-       # Sum each annual raster to create semi-decadal proportions         
-        if len(openSW_yr_rasters)>=1:
-            openSW = utils.sum_annual_rasters(openSW_yr_rasters, shape)
-            partialSW = utils.sum_annual_rasters(partialSW_yr_rasters, shape)
-            data = utils.sum_annual_rasters(data_yr_rasters, shape)
+       # Sum each annual file to create semi-decadal proportions         
+        if len(openSW_yr_files)>=1:
+            openSW = utils.sum_annual_files(openSW_yr_files, shape)
+            partialSW = utils.sum_annual_files(partialSW_yr_files, shape)
+            data = utils.sum_annual_files(data_yr_files, shape)
 
             year = [str(Active_yr), str(Range_yr)]
             #Calculate proportions
             openSWproportion = utils.calculate_proportion(openSW, data)
             partialSWproportion = utils.calculateproportion(partialSW, data)
             #Save
-            utils.create_output_file(openSWproportion, 'openSW', dec_prop_dir, PathRow, year, shape, MaxGeo, interpproj)
-            utils.create_output_file(partialSWproportion, 'partialSW',  dec_prop_dir, PathRow, year, shape, MaxGeo, interpproj)
+            utils.create_output_file(openSWproportion, 'openSW', dec_prop_dir, year, shape, MaxGeo, rasterproj)
+            utils.create_output_file(partialSWproportion, 'partialSW',  dec_prop_dir, year, shape, MaxGeo, rasterproj)
 
             #Move on to the next semi-decade
             Active_yr=Range_yr+1

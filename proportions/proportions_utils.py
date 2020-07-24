@@ -34,28 +34,27 @@ def make_dirs(main_dir):
     return process_dir, prop_dir, dec_prop_dir
 
 
-def find_max_extent(raster, extent_0):
+def find_max_extent(file, extent_0):
     '''
-    Determine the maximum extent of all rasters;
+    Determine the maximum extent of all files;
     ensures that no images are cropped and that 
     extent/georeferencing remains consistent
     INPUTS:
-        raster : current raster being processed
+        file : current file being processed
         extent_0 : list : initial extent values to be 
             overwritten; in order [minx, maxy, maxx, miny]
     RETURNS:
         extent_0 : list : updated extent values 
     '''
-    # calculate extent of current raster
-    interp = gdal.Open(os.path.abspath(raster))
-    interpgeo=interp.GetGeoTransform()
-    interpproj=interp.GetProjection()
+    # calculate extent of current file
+    raster = gdal.Open(os.path.abspath(file))
+    rastergeo=raster.GetGeoTransform()
     
-    minx = interpgeo[0]
-    maxy = interpgeo[3]
-    maxx = minx + interpgeo[1] * interp.RasterXSize
-    miny = maxy + interpgeo[5] * interp.RasterYSize
-
+    minx = rastergeo[0]
+    maxy = rastergeo[3]
+    maxx = minx + rastergeo[1] * raster.fileXSize
+    miny = maxy + rastergeo[5] * raster.fileYSize
+    
     # rewrite extent with larger values
     #TODO check if this is correct -- appears to be decreasing every time (finding minimum instead of maximum extent)
     if minx < extent_0[0]:
@@ -69,45 +68,45 @@ def find_max_extent(raster, extent_0):
     return extent_0
 
 
-def open_interp(raster, process_dir, max_extent):
+def open_raster(file, process_dir, max_extent):
     '''
     Open file and get out data.
     INPUTS:
-        raster : 
+        file : 
         process_dir : 
         max_extent : 
     RETURNS:
-        interp : 
+        raster : 
         MaxGeo : 
         shape : 
     '''
     #TODO figure out exactly what all of these variables are
     #TODO document this function
 
-    interp = gdal.Open(os.path.abspath(raster))
-    print("Opened:", raster)
-    interpmaxextent_out= process_dir + "/interp.tif"
-    #Expand every interpreted layer to the maximum extent of all data for the path/row
-    interp=gdal.Translate(interpmaxextent_out, interp, projWin = max_extent)
-    MaxGeo=interp.GetGeoTransform()
-    interpproj = interp.GetProjection()
-    interp=interp.GetRasterBand(1).ReadAsArray()
-    shape=interp.shape
-    return interp, MaxGeo, shape, interpproj
+    raster = gdal.Open(os.path.abspath(file))
+    print("Opened:", file)
+    rastermaxextent_out= process_dir + "/raster.tif"
+    #Expand every rasterreted layer to the maximum extent of all data for the path/row
+    raster=gdal.Translate(rastermaxextent_out, raster, projWin = max_extent)
+    MaxGeo=raster.GetGeoTransform()
+    rasterproj = raster.GetProjection()
+    raster=raster.GetfileBand(1).ReadAsArray()
+    shape=raster.shape
+    return raster, MaxGeo, shape, rasterproj
 
 
-def reclassify_interp_layer(interp):
+def reclassify(raster):
     '''
-    Reclassify the interpreted layer with observations 
+    Reclassify the layer with observations 
     of interst as '1' and observations not of interest as '0'
     INPUTS:
-        interp : 
+        raster : 
     RETURNS:
         openSW : 
         partialSW : 
         nonwater : 
     DSWE CLASSIFICATION: for INTR and INWM layers
-        Pixel Value | Interpretation
+        Pixel Value | rasterretation
             0       |   not openSW
             1       |   openSW, high confidence
             2       |   openSW, mod confidence
@@ -120,23 +119,23 @@ def reclassify_interp_layer(interp):
 
     '''
     # no data or cloud/snow
-    interp[np.where((interp==255) | (interp==9))] = 0
+    raster[np.where((raster==255) | (raster==9))] = 0
 
         #TODO ask if this is what Dr. Jones meant by 'valid observations' -- are ones with 255 invalid?
         # so are invalid results already accounted for in this line, since this is removed from everything
         # (and thus also from containsdata further down)?
     
-    openSW=interp.copy()
+    openSW=raster.copy()
     # high/moderate confidence openSW
     openSW[np.where((openSW==1) | (openSW==2))] = 1
     openSW[np.where((openSW==4) | (openSW==3))] = 0
 
-    partialSW=interp.copy()
+    partialSW=raster.copy()
     # potential wetland
     partialSW[np.where((partialSW==3))] = 1
     partialSW[np.where((partialSW==1) | (partialSW==2) | (partialSW==4))] = 0
     
-    nonwater=interp.copy()
+    nonwater=raster.copy()
     #TODO why is not openSW 4 and low confidence 1?
     nonwater[np.where((nonwater==0))] = 4
     nonwater[np.where((nonwater==4))] = 1
@@ -144,28 +143,28 @@ def reclassify_interp_layer(interp):
     return openSW, partialSW, nonwater
 
 
-def create_output_file(data, data_str, output_dir, PathRow, year, shape, MaxGeo, interpproj):
+def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterproj):
     '''
     Creates output file for data in designated directory
     INPUTS:
         data : 
         data_str : str : 
         output_dir : str : 
-        PathRow : str : 
-        year : str OR list of str : 
+        year : 
         shape : 
         MaxGeo : 
-        interpproj : 
+        rasterproj : 
     RETURNS:
         output file in output_dir
     '''
+
     # create output filename
     if 'DecadalProportions' in output_dir:
-        filename = 'DSWE_V2_P1_' + PathRow + '_' + year[0] + '_' + year[1] + '_openSW_Proportion.tif'
+        filename = 'DSWE_V2_P1_' + '_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
     elif 'processing' in output_dir:
-        filename = '/DSWE_V2_P1_' + PathRow + '_' + year + '_' + data_str + 'sum.tif'
+        filename = '/DSWE_V2_P1_' + '_' + str(year) + '_' + data_str + 'sum.tif'
     elif 'Proportions' in output_dir:
-        filename = '/DSWE_V2_P1_' + PathRow + '_' + year + '_' + data_str + '_Proportion.tif'
+        filename = '/DSWE_V2_P1_' + '_' + str(year) + '_' + data_str + '_Proportion.tif'
     # output file path
     file_path = os.path.join(output_dir, filename)
     
@@ -173,8 +172,8 @@ def create_output_file(data, data_str, output_dir, PathRow, year, shape, MaxGeo,
     driver = gdal.GetDriverByName("GTiff")
     data_out = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
     data_out.SetGeoTransform(MaxGeo)
-    data_out.SetProjection(interpproj)
-    data_out.GetRasterBand(1).WriteArray(data)
+    data_out.SetProjection(rasterproj)
+    data_out.GetfileBand(1).WriteArray(data)
     return
 
 
@@ -188,20 +187,20 @@ def calculate_proportion(data, total):
     return proportion
 
 
-def years_to_process(rasters):
-    year_rasters = []
-    for raster in rasters:
-        raster_year = int(raster[18:22])
-        print('CHECK year should be', raster_year)
-        if raster_year >= Active_yr and raster_year <= Range_yr:
-            year_rasters.append(raster)
-    return year_rasters
+def years_to_process(files):
+    year_files = []
+    for file in files:
+        file_year = int(file[18:22])
+        print('CHECK year should be', file_year)
+        if file_year >= Active_yr and file_year <= Range_yr:
+            year_files.append(file)
+    return year_files
 
-def sum_annual_rasters(year_rasters, shape):
+def sum_annual_files(year_files, shape):
     data = np.zeros(shape)
-    for raster in year_rasters:
-        new_data = gdal.Open(os.path.abspath(raster))
-        new_data = new_data.GetRasterBand(1).ReadAsArray()
+    for file in year_files:
+        new_data = gdal.Open(os.path.abspath(file))
+        new_data = new_data.GetfileBand(1).ReadAsArray()
         data += new_data
     return data
 
