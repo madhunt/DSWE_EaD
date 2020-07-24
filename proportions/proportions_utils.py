@@ -4,8 +4,10 @@ Includes making directories and output files,
 basic calculations, and reclassifying layers.
 
 '''
-
-
+import numpy as np
+import gdal
+import os
+import datetime
 
 def make_dirs(main_dir, folder):
     '''
@@ -93,9 +95,9 @@ def open_interp(raster, process_dir, max_extent):
     #Expand every interpreted layer to the maximum extent of all data for the path/row
     interp=gdal.Translate(interpmaxextent_out, interp, projWin = max_extent)
     MaxGeo=interp.GetGeoTransform()
+    interpproj = interp.GetProjection()
     interp=interp.GetRasterBand(1).ReadAsArray()
     shape=interp.shape
-    interpproj = interp.GetProjection
     return interp, MaxGeo, shape, interpproj
 
 
@@ -173,6 +175,7 @@ def create_output_file(data, data_str, output_dir, PathRow, year, shape, MaxGeo,
     file_path = os.path.join(output_dir, filename)
     
     # create output file
+    driver = gdal.GetDriverByName("GTiff")
     data_out = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
     data_out.SetGeoTransform(MaxGeo)
     data_out.SetProjection(interpproj)

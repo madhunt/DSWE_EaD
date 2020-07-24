@@ -1,3 +1,6 @@
+'''
+'''
+
 import numpy as np
 import gdal
 import os
@@ -23,18 +26,34 @@ pathcount=len(paths)
 print(pathcount)
 
 count=0#XXX there are 2 count variables used for different things -- make sure these are actually working
+
 for folder in paths:
     count+=1
     # make output directories
     wdir, process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir, folder)
 
     # Create a list to hold our rasters
-    driver = gdal.GetDriverByName("GTiff")
     All_Rasters = []
 
     for dirpath, dirnames, filenames in os.walk(wdir):
-        for filename in filenames:
-            All_Rasters.append(os.path.join(dirpath, filename))
+        print('wdir', wdir)
+        print(dirpath)
+        print(dirnames)
+        print(filenames)
+    for dirpath, dirnames, filenames in os.walk(main_dir):
+        print('main dir', main_dir)
+        print(dirpath)
+        print(dirnames)
+        print(filenames)
+
+    breakpoint()
+
+
+
+####################################        
+
+        #for filename in filenames:
+        #    All_Rasters.append(os.path.join(dirpath, filename))
     print('all rasters', All_Rasters)
 
     #We only want to process the Interp Masked rasters, so we prune our list and make a new list to hold only these rasters
@@ -58,7 +77,7 @@ for folder in paths:
     max_extent = extent_0
     print("Max Extent calculated")
     # Get Path/Row
-    trim = raster[-25:]
+    trim = raster[-50:]
     print('trim', trim)
     PathRow=trim[3:9] #XXX what is pathrow
     print('path row', PathRow)
@@ -68,8 +87,8 @@ for folder in paths:
     while Active_yr <= End_yr:
         Year_Interp=[]
         for raster in Interp_Masked:
-            trim = raster[-25:]
-            year = int(trim[9:13])
+            trim = raster[-50:]
+            year = int(trim[16:20])
             print('year',year)
             if year == Active_yr:
                 Year_Interp.append(raster)
@@ -86,7 +105,11 @@ for folder in paths:
                     partialSW = np.zeros(shape)
                     nonwater = np.zeros(shape)
                 # reclassify layer and add to previous
-                openSW, partialSW, nonwater += utils.reclassify_interp_layer(interp)
+                openSW_new, partialSW_new, nonwater_new = utils.reclassify_interp_layer(interp)
+                openSW += openSW_new
+                partialSW += partialSW_new
+                nonwater += nonwater_new
+
                 count += 1
                 print(count, "of", NumRast, "scenes processed")
 
@@ -160,7 +183,7 @@ for folder in paths:
             partialSW = utils.sum_annual_rasters(partialSW_yr_rasters, shape)
             data = utils.sum_annual_rasters(data_yr_rasters, shape)
 
-            year = [str(Active_yr, str(Range_yr)]
+            year = [str(Active_yr), str(Range_yr)]
             #Calculate proportions
             openSWproportion = utils.calculate_proportion(openSW, data)
             partialSWproportion = utils.calculateproportion(partialSW, data)
