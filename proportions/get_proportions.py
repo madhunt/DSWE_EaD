@@ -13,65 +13,40 @@ import proportions_utils as utils
 main_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
 Start_yr = 1985
 End_yr = 1995
+DSWE_layer = 'INWM' #or 'INTR'
 
 #Ultimately, we’d like user input for the compilation period, that is: by month, year, semi-decade, “season”, and within month but across all years!
 
 
-
 os.chdir(main_dir)
-paths = glob.glob('*/')
-print(paths)
-pathcount=len(paths)
 
-print(pathcount)
+# make a list of all DSWE files of interest
+all_files = []
+# look through all directories and subdirectories (tree)
+for dirpath, dirnames, filenames in os.walk(main_dir):
+    # find all files in tree
+    for filename in filenames:
+        # if the file is the layer of interest
+        if DSWE_layer in filename: 
+            all_files.append(os.path.join(dirpath, filename))
 
-count=0#XXX there are 2 count variables used for different things -- make sure these are actually working
+# make output directories
+process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir)
+
+num_files = len(all_files)
+print(f'Processing {num_files} Total Scenes (All Years)')
+
+breakpoint()
 
 for folder in paths:
-    count+=1
-    # make output directories
-    wdir, process_dir, prop_dir, dec_prop_dir = utils.make_dirs(main_dir, folder)
 
-    # Create a list to hold our rasters
-    All_Rasters = []
-
-    for dirpath, dirnames, filenames in os.walk(wdir):
-        print('wdir', wdir)
-        print(dirpath)
-        print(dirnames)
-        print(filenames)
-    for dirpath, dirnames, filenames in os.walk(main_dir):
-        print('main dir', main_dir)
-        print(dirpath)
-        print(dirnames)
-        print(filenames)
-
-    breakpoint()
-
-
-
-####################################        
-
-        #for filename in filenames:
-        #    All_Rasters.append(os.path.join(dirpath, filename))
-    print('all rasters', All_Rasters)
-
-    #We only want to process the Interp Masked rasters, so we prune our list and make a new list to hold only these rasters
-    Interp_Masked=[s for s in All_Rasters if s.endswith('tif')]
-    Interp_Masked=[s for s in Interp_Masked if "INWM" in s]
-        #[s for s in Interp_Masked if "interp_masked" in s]
-    #TODO make input into this function to use either INTR or INWM layers
-    # TODO input_layer = 'INMW' or 'INTR', use input_layer in above if stmt
-
-    NumRast=len(Interp_Masked)
-    print(Interp_Masked)
-    print("Processing ",NumRast, " Total Scenes (All Years)")
+    print(all_files)
 
     # initialize extent to be overwritten 
     extent_0 = [1e12, -1e12, -1e12, 1e12]
 
     # Loop through rasters in list
-    for raster in Interp_Masked:
+    for raster in all_files:
         # calculate max extent
         extent_0 = utils.find_max_extent(raster, extent_0)
     max_extent = extent_0
@@ -86,15 +61,15 @@ for folder in paths:
     Active_yr=Start_yr
     while Active_yr <= End_yr:
         Year_Interp=[]
-        for raster in Interp_Masked:
+        for raster in all_files:
             trim = raster[-50:]
             year = int(trim[16:20])
             print('year',year)
             if year == Active_yr:
                 Year_Interp.append(raster)
                 
-        NumRast=len(Year_Interp)
-        if NumRast>=1: #XXX unnecessary?
+        num_files=len(Year_Interp)
+        if num_files>=1: #XXX unnecessary?
             count = 0
             for raster in Year_Interp:
                 interp, MaxGeo, shape, interpproj = utils.open_interp(raster, process_dir, max_extent)
@@ -111,12 +86,12 @@ for folder in paths:
                 nonwater += nonwater_new
 
                 count += 1
-                print(count, "of", NumRast, "scenes processed")
+                print(count, "of", num_files, "scenes processed")
 
-                if count == NumRast: #XXX unnecessary?
+                if count == num_files: #XXX unnecessary?
                     break
 
-            if count == NumRast: #XXX unnecessary?
+            if count == num_files: #XXX unnecessary?
                 year=str(Active_yr)
                 #Identify pixels that contain data
                 containsdata= openSW+partialSW+nonwater
@@ -203,9 +178,7 @@ for folder in paths:
     print("Decadal proportions output")
     #Cleanup
     del partialSW_out, partialSWproportion,openSW_out, openSWproportion, openSWDecPropOut, partialSWDecPropOut
-    if pathcount==count:
-        print("All processing completed")
-        exit()
+    print("All processing completed")
 
   
     

@@ -7,36 +7,31 @@ basic calculations, and reclassifying layers.
 import numpy as np
 import gdal
 import os
-import datetime
 
-def make_dirs(main_dir, folder):
+def make_dirs(main_dir):
     '''
     Creates directories to process data and store results in.
     INPUTS:
         main_dir : str : path to main directory 
             with input data in subfolders
-        folder : str : 
     RETURNS:
-        wdir : str : path to current working directory 
         process_dir : str : path to processing directory
         prop_dir : str : path to annual proprtions directory
         dec_prop_dir : str : path to semi-decadal proportions directory
     '''
     # move to working directory in current sub-folder
-    wdir = os.path.join(main_dir, folder)
-    os.chdir(wdir)
+    #wdir = os.path.join(main_dir, folder)
+    #os.chdir(wdir)
     # create output directories (subfolders in main_dir)
-    process_dir = os.path.join(wdir, 'processing')
-    prop_dir = os.path.join(wdir, 'Proportions')
-    dec_prop_dir = os.path.join(wdir, 'DecadalProportions')
+    process_dir = os.path.join(main_dir, 'processing')
+    prop_dir = os.path.join(main_dir, 'Proportions')
+    dec_prop_dir = os.path.join(main_dir, 'DecadalProportions')
     
     os.makedirs(process_dir, exist_ok=True)
     os.makedirs(prop_dir, exist_ok=True)
     os.makedirs(dec_prop_dir, exist_ok=True)
     
-    print("directories made")
-    print(datetime.datetime.now())
-    return wdir, process_dir, prop_dir, dec_prop_dir
+    return process_dir, prop_dir, dec_prop_dir
 
 
 def find_max_extent(raster, extent_0):
