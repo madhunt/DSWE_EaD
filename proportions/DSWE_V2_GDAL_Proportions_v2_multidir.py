@@ -24,7 +24,7 @@ import sys
 # Specify the path for input data. This should be the output folder containing your DSWE output, each contained in their own scene specific subfolder.
 # Start year recommended to end with a 0 or 5 regardless of where your data starts.  This is for semi-decadal proportions that will span a 5 year stretch.
 # Ensure that your start year is less than the first year of your DSWE output.
-Path_dir = '/home/mad/DSWE_EaD/proportions/test_data/DSWE_out_backup'
+Path_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
 #os.path.join('~', 'DSWE_EaD', 'proportions', 'test_data', 'DSWE_out')
 Start_yr = 1985
 End_yr = 1995
