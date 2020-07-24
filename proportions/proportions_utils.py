@@ -7,7 +7,6 @@ basic calculations, and reclassifying layers.
 
 
 
-
 def make_dirs(main_dir, folder):
     '''
     Creates directories to process data and store results in.
@@ -73,45 +72,108 @@ def find_max_extent(raster, extent_0):
     return extent_0
 
 
-def open_interp(raster, process_dir, MaxExtent):
+def open_interp(raster, process_dir, max_extent):
+    '''
+    Open file and get out data.
+    INPUTS:
+        raster : 
+        process_dir : 
+        max_extent : 
+    RETURNS:
+        interp : 
+        MaxGeo : 
+        shape : 
+    '''
+    #TODO figure out exactly what all of these variables are
+    #TODO document this function
+
     interp = gdal.Open(os.path.abspath(raster))
     print("Opened:", raster)
     interpmaxextent_out= process_dir + "/interp.tif"
     #Expand every interpreted layer to the maximum extent of all data for the path/row
-    interp=gdal.Translate(interpmaxextent_out, interp, projWin = MaxExtent)
+    interp=gdal.Translate(interpmaxextent_out, interp, projWin = max_extent)
     MaxGeo=interp.GetGeoTransform()
     interp=interp.GetRasterBand(1).ReadAsArray()
     shape=interp.shape
-    return interp, MaxGeo, shape
+    interpproj = interp.GetProjection
+    return interp, MaxGeo, shape, interpproj
 
 
 def reclassify_interp_layer(interp):
-    interp[np.where((interp_copy==255) | (interp_copy==9))] = 0 # 9=cloud/snow, 255=nodata
+    '''
+    Reclassify the interpreted layer with observations 
+    of interst as '1' and observations not of interest as '0'
+    INPUTS:
+        interp : 
+    RETURNS:
+        openSW : 
+        partialSW : 
+        nonwater : 
+    DSWE CLASSIFICATION: for INTR and INWM layers
+        Pixel Value | Interpretation
+            0       |   not openSW
+            1       |   openSW, high confidence
+            2       |   openSW, mod confidence
+            3       |   potential wetland
+            4       |   openSW/wetland, low confidence
+            9       |   cloud/snow (INWM only)
+            255     |   no data
+    REFERENCES:
+        LANDSAT DSWE Product Guide, pg. 10
+
+    '''
+    # no data or cloud/snow
+    interp[np.where((interp==255) | (interp==9))] = 0
+
         #TODO ask if this is what Dr. Jones meant by 'valid observations' -- are ones with 255 invalid?
         # so are invalid results already accounted for in this line, since this is removed from everything
         # (and thus also from containsdata further down)?
-    water=interp.copy()
-    water[np.where((water == 2))] = 1
-    water[np.where((water == 4) | (water == 3))] = 0
-    mixed=interp.copy()
-    mixed[np.where((mixed == 1) | (mixed == 2) | (mixed == 4))] = 0
-    mixed[np.where((mixed == 3))] = 1
+    
+    openSW=interp.copy()
+    # high/moderate confidence openSW
+    openSW[np.where((openSW==1) | (openSW==2))] = 1
+    openSW[np.where((openSW==4) | (openSW==3))] = 0
+
+    partialSW=interp.copy()
+    # potential wetland
+    partialSW[np.where((partialSW==3))] = 1
+    partialSW[np.where((partialSW==1) | (partialSW==2) | (partialSW==4))] = 0
+    
     nonwater=interp.copy()
-    nonwater[np.where((nonwater == 0))] = 4
-    nonwater[np.where((nonwater == 1) | (nonwater == 2) | (nonwater == 3))] = 0
-    nonwater[np.where((nonwater == 4))] = 1
-    return water, mixed, nonwater
+    #TODO why is not openSW 4 and low confidence 1?
+    nonwater[np.where((nonwater==0))] = 4
+    nonwater[np.where((nonwater==4))] = 1
+    nonwater[np.where((nonwater==1) | (nonwater==2) | (nonwater==3))] = 0
+    return openSW, partialSW, nonwater
+
 
 def create_output_file(data, data_str, output_dir, PathRow, year, shape, MaxGeo, interpproj):
+    '''
+    Creates output file for data in designated directory
+    INPUTS:
+        data : 
+        data_str : str : 
+        output_dir : str : 
+        PathRow : str : 
+        year : str OR list of str : 
+        shape : 
+        MaxGeo : 
+        interpproj : 
+    RETURNS:
+        output file in output_dir
+    '''
+    # create output filename
     if 'DecadalProportions' in output_dir:
-        data_file = output_dir + "/DSWE_V2_P1_" + PathRow + "_" + year[0] + "_" + year[1] + "_Water_Proportion.tif" 
+        filename = 'DSWE_V2_P1_' + PathRow + '_' + year[0] + '_' + year[1] + '_openSW_Proportion.tif'
     elif 'processing' in output_dir:
-        data_file = output_dir + "/DSWE_V2_P1_" + PathRow + "_" + year + "_" + data_str + "sum.tif"
+        filename = '/DSWE_V2_P1_' + PathRow + '_' + year + '_' + data_str + 'sum.tif'
     elif 'Proportions' in output_dir:
-        data_file = output_dir + "/DSWE_V2_P1_" + PathRow + "_" + year + "_" + data_str + "_Proportion.tif"
-
-
-    data_out=driver.Create(data_file, shape[1], shape[0], 1, gdal.GDT_Byte)
+        filename = '/DSWE_V2_P1_' + PathRow + '_' + year + '_' + data_str + '_Proportion.tif'
+    # output file path
+    file_path = os.path.join(output_dir, filename)
+    
+    # create output file
+    data_out = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
     data_out.SetGeoTransform(MaxGeo)
     data_out.SetProjection(interpproj)
     data_out.GetRasterBand(1).WriteArray(data)
@@ -119,11 +181,13 @@ def create_output_file(data, data_str, output_dir, PathRow, year, shape, MaxGeo,
 
 
 def calculate_proportion(data, total):
-    proportion = data / np.fload32(total) * 100
+    '''
+    Calculate proportion of data in total; 
+    rounded to nearest integer and out of 100
+    '''
+    proportion = data / np.float32(total) * 100
     np.rint(proportion)
     return proportion
-
-
 
 
 def years_to_process(rasters):
