@@ -5,6 +5,7 @@ Example code to download all search results for DSWE datasets from Winous Point 
 import sys
 sys.path.insert(1, '../')
 
+import numpy as np
 from use_api import download_all_scenes, untar
 
 # output directory for downloaded data
@@ -18,13 +19,14 @@ product = 'DSWE'
 # for a full list of filters, see use_api.py
 latitude = 41.4626 
 longitude = -82.9960 
-months = None # e.g. limit results to June only
-start_date = '1986-01-01' # e.g. limit results to these dates
-end_date = '1987-01-01'
-max_results = 1 # e.g. only give the first 20 search results
 
-# call the function in use_api.py with the relevant parameters
-download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, months=months, start_date=start_date, end_date=end_date, max_results=max_results)
+# download 5 files from each year for 10 years
+years = np.arange(1985, 1996)
+for year in years:
+    start_date = str(year) + '-01-01'
+    end_date = str(year+1) + '-01-01'
+    max_results = 5
+    download_all_scenes(output_dir, dataset, product, latitude=latitude, longitude=longitude, months=months, start_date=start_date, end_date=end_date, max_results=max_results)
 
 # untar the downloaded files in the same directory
 untar(output_dir)
