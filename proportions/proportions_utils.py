@@ -48,12 +48,13 @@ def find_max_extent(file, extent_0):
     '''
     # calculate extent of current file
     raster = gdal.Open(os.path.abspath(file))
+
     rastergeo=raster.GetGeoTransform()
-    
+
     minx = rastergeo[0]
     maxy = rastergeo[3]
-    maxx = minx + rastergeo[1] * raster.fileXSize
-    miny = maxy + rastergeo[5] * raster.fileYSize
+    maxx = minx + rastergeo[1] * raster.RasterXSize
+    miny = maxy + rastergeo[5] * raster.RasterYSize
     
     # rewrite extent with larger values
     #TODO check if this is correct -- appears to be decreasing every time (finding minimum instead of maximum extent)
@@ -90,15 +91,16 @@ def open_raster(file, process_dir, max_extent):
     raster=gdal.Translate(rastermaxextent_out, raster, projWin = max_extent)
     MaxGeo=raster.GetGeoTransform()
     rasterproj = raster.GetProjection()
-    raster=raster.GetfileBand(1).ReadAsArray()
+    raster=raster.GetRasterBand(1).ReadAsArray()
     shape=raster.shape
     return raster, MaxGeo, shape, rasterproj
 
 
 def reclassify(raster):
     '''
-    Reclassify the layer with observations 
-    of interst as '1' and observations not of interest as '0'
+    Reclassify the layer with observations of interest 
+    as 1 and observations not of interest as 0; 
+    invalid observations are mapped to -1e12
     INPUTS:
         raster : 
     RETURNS:
@@ -118,29 +120,31 @@ def reclassify(raster):
         LANDSAT DSWE Product Guide, pg. 10
 
     '''
-    # no data or cloud/snow
-    raster[np.where((raster==255) | (raster==9))] = 0
+    # INVALID observations: no data or cloud/snow
+    invalid = np.zeros(np.shape(raster))
+    invalid[(raster==9) | (raster==255)] = float('nan')
 
-        #TODO ask if this is what Dr. Jones meant by 'valid observations' -- are ones with 255 invalid?
-        # so are invalid results already accounted for in this line, since this is removed from everything
-        # (and thus also from containsdata further down)?
+    # NO INUNDATION: nonwater
+    nonwater = (raster==0).astype(float) + invalid
     
-    openSW=raster.copy()
-    # high/moderate confidence openSW
-    openSW[np.where((openSW==1) | (openSW==2))] = 1
-    openSW[np.where((openSW==4) | (openSW==3))] = 0
+    # OPEN SURFACE WATER: water, high/mod confidence
+    openSW = ((raster==1) | (raster==2)).astype(float) + invalid
 
-    partialSW=raster.copy()
-    # potential wetland
-    partialSW[np.where((partialSW==3))] = 1
-    partialSW[np.where((partialSW==1) | (partialSW==2) | (partialSW==4))] = 0
+    # PARTIAL SURFACE WATER: wetland, water low confidence
+    partialSW = ((raster==3) | (raster==4)).astype(float) + invalid
     
-    nonwater=raster.copy()
-    #TODO why is not openSW 4 and low confidence 1?
-    nonwater[np.where((nonwater==0))] = 4
-    nonwater[np.where((nonwater==4))] = 1
-    nonwater[np.where((nonwater==1) | (nonwater==2) | (nonwater==3))] = 0
     return openSW, partialSW, nonwater
+
+
+def calculate_proportion(data, total_num):
+    '''
+    Calculate proportion of time each pixel in data is spent
+    in that state, out of 1.0
+    '''
+    proportion = data / total_num
+
+    return proportion
+
 
 
 def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterproj):
@@ -157,34 +161,34 @@ def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterpr
     RETURNS:
         output file in output_dir
     '''
+    
+
+
 
     # create output filename
     if 'DecadalProportions' in output_dir:
-        filename = 'DSWE_V2_P1_' + '_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
+        filename = 'DSWE_V2_P1_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
     elif 'processing' in output_dir:
-        filename = '/DSWE_V2_P1_' + '_' + str(year) + '_' + data_str + 'sum.tif'
+        filename = '/DSWE_V2_P1_' + str(year) + '_' + data_str + 'sum.tif'
     elif 'Proportions' in output_dir:
-        filename = '/DSWE_V2_P1_' + '_' + str(year) + '_' + data_str + '_Proportion.tif'
+        filename = '/DSWE_V2_P1_' + str(year) + '_' + data_str + '_Proportion.tif'
     # output file path
     file_path = os.path.join(output_dir, filename)
     
     # create output file
     driver = gdal.GetDriverByName("GTiff")
     data_out = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
+    
+    print('check dataout')
+    breakpoint()
+
+    
+    #FIXME this method for saving data does not work!!!
     data_out.SetGeoTransform(MaxGeo)
     data_out.SetProjection(rasterproj)
-    data_out.GetfileBand(1).WriteArray(data)
+    data_out.GetRasterBand(1).WriteArray(data)
     return
 
-
-def calculate_proportion(data, total):
-    '''
-    Calculate proportion of data in total; 
-    rounded to nearest integer and out of 100
-    '''
-    proportion = data / np.float32(total) * 100
-    np.rint(proportion)
-    return proportion
 
 
 def years_to_process(files):
