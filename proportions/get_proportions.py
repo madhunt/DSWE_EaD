@@ -13,7 +13,6 @@ import proportions_utils as utils
 main_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
 DSWE_layer = 'INWM' #or 'INTR'
 
-#Ultimately, we’d like user input for the compilation period, that is: by month, year, semi-decade, “season”, and within month but across all years!
 
 
 os.chdir(main_dir)
@@ -73,6 +72,9 @@ for current_year in range(start_year, end_year+1):
         # open the file    
         raster, MaxGeo, shape, rasterproj = utils.open_raster(file, process_dir, max_extent)
 
+
+        print('maxgeo', MaxGeo)
+
         #TODO shape = np.shape(raster) -- remove from func
 
         if i == 0:
@@ -87,9 +89,6 @@ for current_year in range(start_year, end_year+1):
         partialSW += partialSW_new
         nonwater += nonwater_new
 
-
-    breakpoint()
-
     # maximum number any given pixel can be
     total_num = len(current_files)
     
@@ -99,8 +98,10 @@ for current_year in range(start_year, end_year+1):
     partialSW_prop = utils.calculate_proportion(partialSW, total_num)
     nonwater_prop = utils.calculate_proportion(nonwater, total_num)
 
-
-
+    #TODO MaxGeo is created in for loop above, so the input to these functions would be the LAST MaxGeo -- is this correct?????
+    #TODO same for rasterproj
+    
+################# code up to here is great!!
 
     # create output files
     utils.create_output_file(openSW, 'openSW', process_dir ,current_year, shape, MaxGeo, rasterproj)
