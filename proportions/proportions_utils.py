@@ -169,24 +169,22 @@ def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterpr
     if 'DecadalProportions' in output_dir:
         filename = 'DSWE_V2_P1_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
     elif 'processing' in output_dir:
-        filename = '/DSWE_V2_P1_' + str(year) + '_' + data_str + 'sum.tif'
+        filename = 'DSWE_V2_P1_' + str(year) + '_' + data_str + 'sum.tif'
     elif 'Proportions' in output_dir:
-        filename = '/DSWE_V2_P1_' + str(year) + '_' + data_str + '_Proportion.tif'
+        filename = 'DSWE_V2_P1_' + str(year) + '_' + data_str + '_Proportion.tif'
     # output file path
     file_path = os.path.join(output_dir, filename)
-    
-    # create output file
-    driver = gdal.GetDriverByName("GTiff")
-    data_out = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
-    
-    print('check dataout')
-    breakpoint()
 
-    
-    #FIXME this method for saving data does not work!!!
-    data_out.SetGeoTransform(MaxGeo)
-    data_out.SetProjection(rasterproj)
-    data_out.GetRasterBand(1).WriteArray(data)
+
+    # create output file
+
+    driver = gdal.GetDriverByName('GTiff') # save as geotiff
+    outdata = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
+    outdata.SetGeoTransform(MaxGeo)
+    outdata.SetProjection(rasterproj)
+    outdata.GetRasterBand(1).WriteArray(data)
+    outdata.FlushCache()
+
     return
 
 
