@@ -148,15 +148,24 @@ def download_list(output_dir, dataset, product, sceneids_path):
 
     scene_ids = csv_to_list(sceneids_path)
     
-    for i, scene in enumerate(scene_ids, start=1):
+    for i, row in enumerate(scene_ids, start=1):
         print(f'downloading scene {i} of {len(scene_ids)}')
+        
+        if isinstance(row, list):
+            # if there are multiple columns in the csv
+            # assume scene ID is in first column
+            scene = row[0]
+        else:
+            scene = row
 
         # create output filename
         filename = os.path.join(output_dir, scene)
 
         if isinstance(product, list):
+            # if given a list of product strings
             product_str = product[i-1]
         else: 
+            # if given a single product for all scenes
             product_str = product
         
         # get download information
