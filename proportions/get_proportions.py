@@ -10,7 +10,7 @@ import sys
 
 import proportions_utils as utils
 
-main_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
+main_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan_take2'
 DSWE_layer = 'INWM' #or 'INTR'
 
 
