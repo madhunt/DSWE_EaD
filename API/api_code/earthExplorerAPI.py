@@ -195,7 +195,7 @@ class API(object):
         response = self.request('download', **params)
         return response
 
-    def download_options(self ):
+    def download_options(self, dataset,  ):
         '''
         This function will provide download options metadata, including the "downloadCode" needed to put in as the "product" when downloading files
                 download_code used to download scenes is (response['data']['downloadOptions']['downloadCode'])

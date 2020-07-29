@@ -5,9 +5,9 @@ import earthExplorerAPI as eeapi
 import getpass
 import os
 import urllib.request
-#import time
 import tarfile
 import csv
+import re
 
 def login():
     '''
@@ -129,7 +129,7 @@ def download_search(output_dir, dataset, product, **kwargs):
     return
 
 
-def download_list(output_dir, dataset, product, sceneids_path):
+def download_list(output_dir, dataset, csv_path):
     '''
     Download scenes from a given list of scene IDs.
     INPUTS:
@@ -146,30 +146,23 @@ def download_list(output_dir, dataset, product, sceneids_path):
     '''
     api = login()
 
-    scene_ids = csv_to_list(sceneids_path)
-    
-    for i, row in enumerate(scene_ids, start=1):
-        print(f'downloading scene {i} of {len(scene_ids)}')
+    print(api.key)
+
+    scene_ids, product_ids = csv_to_ID_list(csv_path)
+
+    for i, scene in enumerate(scene_ids):
+        print(f'Downloading scene {i+1} of {len(scene_ids)}')
         
-        if isinstance(row, list):
-            # if there are multiple columns in the csv
-            # assume scene ID is in first column
-            scene = row[0]
-        else:
-            scene = row
+        product = product_ids[i]
 
         # create output filename
         filename = os.path.join(output_dir, scene)
 
-        if isinstance(product, list):
-            # if given a list of product strings
-            product_str = product[i-1]
-        else: 
-            # if given a single product for all scenes
-            product_str = product
-        
         # get download information
-        response = api.download(dataset, product_str, scene)
+        response = api.download(dataset, product, scene)
+
+        breakpoint()
+
         url = response[0]['url']
         
         # download dataset
@@ -181,7 +174,7 @@ def download_list(output_dir, dataset, product, sceneids_path):
     return
 
 
-def csv_to_list(csv_path):
+def csv_to_ID_list(csv_path):
     '''
     Convert csv file to list
     INPUTS: 
@@ -189,10 +182,24 @@ def csv_to_list(csv_path):
     RETURNS:
         data_list : list : csv data in list format
     '''
+
+    scene_ids = []
+    product_ids = []
+
     with open(csv_path, newline='') as f:
-        reader = csv.reader(f)
-        data_list = list(reader)
-    return data_list
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            for cols in row.items():
+                header = cols[0]
+                scene_id_search = re.compile(r'scene[ _]id', flags=re.IGNORECASE)
+                product_id_search = re.compile(r'product[ _]id', flags=re.IGNORECASE)
+                if scene_id_search.search(header):
+                    scene_ids.append(cols[1])
+                if product_id_search.search(header):
+                    product_ids.append(cols[1])
+
+    return scene_ids, product_ids
 
 
 def untar(output_dir):
@@ -217,4 +224,6 @@ def untar(output_dir):
             tar_file.close()
             os.remove(full_path)
     return
+
+
 
