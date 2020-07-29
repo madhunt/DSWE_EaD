@@ -7,6 +7,7 @@ import os
 import datetime
 import glob
 import sys
+from dateutil import rrule
 
 import proportions_utils as utils
 
@@ -27,7 +28,7 @@ for dirpath, dirnames, filenames in os.walk(main_dir):
         # if the file is the layer of interest
         if DSWE_layer in filename:
             all_files.append(os.path.join(dirpath, filename))
-            file_date = int(filename[15:23])
+            file_date = utils.get_file_date(filename)
             all_dates.append(file_date)
 
 # make output directories
@@ -47,37 +48,160 @@ max_extent = extent_0
 print("Max Extent calculated")
 
 
-start_date = min(all_dates) #XXX currently int YYYYMMDD -- may need to change later
-end_date = max(all_dates)
 
-##########################################################
 # ANNUAL (1 YEAR AT A TIME)
+def process_yearly(all_files, all_dates):
+    '''
+    Process files yearly
+    '''
+    all_years = [i.year for i in all_dates]
+    start_year = min(all_years)
+    end_year = max(all_years)
 
-# make list of years
-all_years = [int(str(i)[:4]) for i in all_dates]
+    for current_time in range(start_year, end_year+1):
+        current_files = []
+        # make a list of files in the current year of interest
+        for i, file in enumerate(all_files):
+            file_time = all_years[i]
+            if file_time == current_time:
+                current_files.append(file)
 
-start_year = min(all_years)
-end_year = max(all_years)
+        # process files in current year of interest
+        process_files()
+        #TODO add function call here
 
-for current_year in range(start_year, end_year+1):
-    current_files = []
-    # make a list of files in the current year of interest
-    for i, file in enumerate(all_files):
-        file_year = all_years[i]
-        if file_year == current_year:
-            current_files.append(file)
+        print(f'Proportions completed for {current_year}')
 
-    # process files in the current year of interest
+    return
+
+### MONTHLY (1 MONTH AT A TIME)
+def process_monthly(all_files, all_dates):
+    '''
+    Process files monthly
+    '''
+    start_date = datetime.date(min(all_dates).year, 1, 1)
+    end_date = datetime.date(max(all_dates).year+1, 1, 1)
+
+    for current_time in rrule.rrule(rrule.MONTHLY, 
+            dtstart=start_date, until=end_date):
+        current_files = []
+        # make a list of files in the current month of interest
+        for i, file in enumerate(all_files):
+            file_time = all_dates[i]
+            if (file_time.month == current_time.month and
+                    file_time.year == current_time.year):
+                current_files.append(file)
+
+        # process files in current year of interest
+        process_files()
+        #TODO add function call here
+
+        print(f'Proportions completed for month 
+                {current_time.month} in {current_time.year}')
+
+    return
+
+
+### ACROSS ALL MONTHS FOR ALL YEARS
+def process_allmonth_across_allyears(all_files, all_dates):
+    '''
+    Process files across all months for all years 
+    '''
+    all_months = [i.month for i in all_dates] 
+    start_month = min(all_months)
+    end_month = max(all_months)
+
+    for current_time in range(start_month, end_month+1):
+        current_files = []
+        # make a list of files in the current month of interest
+        for i, file in enumerate(all_files):
+            file_time = all_months[i]
+            if file_time == current_time:
+                current_files.append(file)
+        
+        # process files in current year of interest
+        process_files()
+        #TODO add function call here
+
+        print(f'Proportions completed for month 
+                {current_time.month}')
+    return   
+
+## SEMI DECADAL
+def process_semidecadally(all_files, all_dates):
+    '''
+    Process files semi-decadally (every 5 years)
+    '''
+    all_years = [i.year for i in all_dates]
+    start_year = min(all_years)
+    end_year = max(all_years)
+
+    for current_time in range(start_year, end_year+5, 5):
+        current_files = []
+        # make a list of files in the current semi-decade
+            # of interest
+        for i, file in enumerate(all_files):
+            file_time = all_years[i]
+            if (file_time - file_time%5) == current_time:
+                current_files.append(file)
+
+        # process files in current year of interest
+        process_files()
+        #TODO add function call here
+
+        print(f'Proportions completed for month 
+                {current_time.month}')
+    return
+
+#### SEASONAL
+def process_seasonally():
+    '''
+    Process files seasonally.
+    Seasons defined meteorologically:
+        N. Hemisphere | S. Hemisphere | Start Date
+        Winter        | Summer        | 1 Dec
+        Spring        | Autumn        | 1 March
+        Summer        | Winter        | 1 June
+        Autumn        | Spring        | 1 Sept
+        
+    '''
+    all_months = [i.month for i in all_dates] 
+
+    # 0=winter, 1=spring, 2=summer, 3=fall
+    for current_time in range(0, 4):
+        current_files = []
+
+        for i, file in enumerate(all_files):
+            file_time = np.floor(all_months[i]/3 %4)
+            if file_time == current_time:
+                current_files.append(file)
+                print(file_time)
+
+        # process files in current year of interest
+        process_files()
+        #TODO add function call here
+
+        print(f'Proportions completed for month 
+                {current_time.month}')
+    return
+
+
+
+
+
+
+def process_files(current_files, process_dir, prop_dir, 
+        max_extent):
+    '''
+    Process files in the current time period of interest
+    '''
     for i, file in enumerate(current_files):
         # open the file    
-        raster, MaxGeo, shape, rasterproj = utils.open_raster(file, process_dir, max_extent)
-
-
-        print('maxgeo', MaxGeo)
-
-        #TODO shape = np.shape(raster) -- remove from func
+        raster, MaxGeo, rasterproj = utils.open_raster(
+                file, process_dir, max_extent)
 
         if i == 0:
+            shape = raster.shape #XXX or np.shape(raster) ?
             # initialize arrays
             openSW = np.zeros(shape)
             partialSW = np.zeros(shape)
@@ -104,16 +228,20 @@ for current_year in range(start_year, end_year+1):
 ################# code up to here is great!!
 
     # create output files
-    utils.create_output_file(openSW, 'openSW', process_dir ,current_year, shape, MaxGeo, rasterproj)
-    utils.create_output_file(partialSW, 'partialSW', process_dir, current_year, shape, MaxGeo, rasterproj)
-    utils.create_output_file(nonwater, 'nonwater',process_dir, current_year, shape, MaxGeo, rasterproj)
-    
-    utils.create_output_file(openSW_prop, 'openSW', prop_dir, current_year, shape, MaxGeo, rasterproj)
-    utils.create_output_file(partialSW_prop, 'partialSW', prop_dir, current_year, shape, MaxGeo, rasterproj)
-    utils.create_output_file(nonwater_prop, 'nonwater', prop_dir, current_year, shape, MaxGeo, rasterproj)
-    
-    print(f'Proportions completed for {current_year}')
+    reclass_data = [openSW, partialSW, nonwater]
+    prop_data = [openSW_prop, partialSW_prop, nonwater_prop]
+    data_str = ['openSW', 'partialSW', 'nonwater']
 
+    for i, data in enumerate(reclass_data):
+        utils.create_output_file(data, data_str[i],
+                process_dir, current_year, 
+                MaxGeo, rasterproj)
+    for i, data in enumerate(prop_data):
+        utils.create_output_file(data, data_str[i],
+                prop_dir, current_year,
+                MaxGeo, rasterproj)
+
+    return
 
 breakpoint()
 

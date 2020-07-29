@@ -7,6 +7,20 @@ basic calculations, and reclassifying layers.
 import numpy as np
 import gdal
 import os
+import datetime
+
+
+def get_file_date(filename):
+    file_year = int(filename[15:19])
+    file_month = int(filename[19:21])
+    file_day = int(filename[21:23])
+    file_date = datetime.date(file_year, file_month, file_day)
+    return file_date
+
+
+
+
+
 
 def make_dirs(main_dir):
     '''
@@ -92,8 +106,7 @@ def open_raster(file, process_dir, max_extent):
     MaxGeo=raster.GetGeoTransform()
     rasterproj = raster.GetProjection()
     raster=raster.GetRasterBand(1).ReadAsArray()
-    shape=raster.shape
-    return raster, MaxGeo, shape, rasterproj
+    return raster, MaxGeo, rasterproj
 
 
 def reclassify(raster):
@@ -146,8 +159,7 @@ def calculate_proportion(data, total_num):
     return proportion
 
 
-
-def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterproj):
+def create_output_file(data, data_str, output_dir, year, MaxGeo, rasterproj):
     '''
     Creates output file for data in designated directory
     INPUTS:
@@ -162,9 +174,6 @@ def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterpr
         output file in output_dir
     '''
     
-
-
-
     # create output filename
     if 'DecadalProportions' in output_dir:
         filename = 'DSWE_V2_P1_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
@@ -175,7 +184,7 @@ def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterpr
     # output file path
     file_path = os.path.join(output_dir, filename)
 
-
+    shape = data.shape
     # create output file
 
     driver = gdal.GetDriverByName('GTiff') # save as geotiff
@@ -186,7 +195,6 @@ def create_output_file(data, data_str, output_dir, year, shape, MaxGeo, rasterpr
     outdata.FlushCache()
 
     return
-
 
 
 def years_to_process(files):
