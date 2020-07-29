@@ -11,15 +11,14 @@ import datetime
 
 
 def get_file_date(filename):
+    '''
+    Uses convention of scene_id (entity_id) as filename.
+    '''
     file_year = int(filename[15:19])
     file_month = int(filename[19:21])
     file_day = int(filename[21:23])
     file_date = datetime.date(file_year, file_month, file_day)
     return file_date
-
-
-
-
 
 
 def make_dirs(main_dir):
@@ -33,19 +32,12 @@ def make_dirs(main_dir):
         prop_dir : str : path to annual proprtions directory
         dec_prop_dir : str : path to semi-decadal proportions directory
     '''
-    # move to working directory in current sub-folder
-    #wdir = os.path.join(main_dir, folder)
-    #os.chdir(wdir)
     # create output directories (subfolders in main_dir)
-    process_dir = os.path.join(main_dir, 'processing')
-    prop_dir = os.path.join(main_dir, 'Proportions')
-    dec_prop_dir = os.path.join(main_dir, 'DecadalProportions')
+    prop_dir = os.path.join(main_dir, 'proportions')
     
-    os.makedirs(process_dir, exist_ok=True)
     os.makedirs(prop_dir, exist_ok=True)
-    os.makedirs(dec_prop_dir, exist_ok=True)
     
-    return process_dir, prop_dir, dec_prop_dir
+    return prop_dir
 
 
 def find_max_extent(file, extent_0):
@@ -62,13 +54,12 @@ def find_max_extent(file, extent_0):
     '''
     # calculate extent of current file
     raster = gdal.Open(os.path.abspath(file))
+    geo_transform = raster.GetGeoTransform()
 
-    rastergeo=raster.GetGeoTransform()
-
-    minx = rastergeo[0]
-    maxy = rastergeo[3]
-    maxx = minx + rastergeo[1] * raster.RasterXSize
-    miny = maxy + rastergeo[5] * raster.RasterYSize
+    minx = geo_transform[0]
+    maxy = geo_transform[3]
+    maxx = minx + geo_transform[1] * raster.RasterXSize
+    miny = maxy + geo_transform[5] * raster.RasterYSize
     
     # rewrite extent with larger values
     #TODO check if this is correct -- appears to be decreasing every time (finding minimum instead of maximum extent)
@@ -83,9 +74,9 @@ def find_max_extent(file, extent_0):
     return extent_0
 
 
-def open_raster(file, process_dir, max_extent):
+def open_raster(file, prop_dir, max_extent):
     '''
-    Open file and get out data.
+    Open file and read as array.
     INPUTS:
         file : 
         process_dir : 
@@ -95,12 +86,12 @@ def open_raster(file, process_dir, max_extent):
         MaxGeo : 
         shape : 
     '''
-    #TODO figure out exactly what all of these variables are
     #TODO document this function
 
     raster = gdal.Open(os.path.abspath(file))
     print("Opened:", file)
-    rastermaxextent_out= process_dir + "/raster.tif"
+    rastermaxextent_out= prop_dir + "/raster.tif"
+    #TODO is the above needed anymore
     #Expand every rasterreted layer to the maximum extent of all data for the path/row
     raster=gdal.Translate(rastermaxextent_out, raster, projWin = max_extent)
     MaxGeo=raster.GetGeoTransform()
@@ -159,7 +150,7 @@ def calculate_proportion(data, total_num):
     return proportion
 
 
-def create_output_file(data, data_str, output_dir, year, MaxGeo, rasterproj):
+def create_output_file(data, data_str, output_dir, current_time, MaxGeo, rasterproj):
     '''
     Creates output file for data in designated directory
     INPUTS:
@@ -175,12 +166,8 @@ def create_output_file(data, data_str, output_dir, year, MaxGeo, rasterproj):
     '''
     
     # create output filename
-    if 'DecadalProportions' in output_dir:
-        filename = 'DSWE_V2_P1_' + str(year[0]) + '_' + str(year[1]) + '_openSW_Proportion.tif'
-    elif 'processing' in output_dir:
-        filename = 'DSWE_V2_P1_' + str(year) + '_' + data_str + 'sum.tif'
-    elif 'Proportions' in output_dir:
-        filename = 'DSWE_V2_P1_' + str(year) + '_' + data_str + '_Proportion.tif'
+    #TODO neaten these up
+    filename = 'DSWE_V2_P1_' + str(current_time) + '_' + data_str + '_Proportion.tif'
     # output file path
     file_path = os.path.join(output_dir, filename)
 
