@@ -1,11 +1,21 @@
-# Proportions inundated by open water and partial surface water
+# Proportions over time inundated with water
 
-This code (when complete) will calculate proprtions of observations inundated by open water and partial surface water for different periods of time (monthly, seasonally, yearly, and semi-decadally). 
+This code calculates proportions of time that pixels are inundated by open water and partial surface water, or never inundated. It can perform these calculations by year, month, month across all years, semi-decade, or season. The user can choose to perform calculations on interpreted (INTR) or interpreted with mask (INWM) DSWE layers.
 
-Interpreted (INTR) or interpreted with masks (INWM) layers from the DSWE dataset will be used as inputs to this code.
+## Code explanation
+- `proportions.py`: this is the main code, and can be run with command line arguments in your terminal.
 
-The code will return the proportion open surface water and the proportion partial surface water for each timeframe.
+    usage: proportions.py -d <directory> -l <layer> -t <timeperiod>
+        -d, --directory     <directory>     main directory where data is located
+        -l, --layer         <layer>         DSWE layer to be used in calculations;
+                                            can be either: {'INWM'|'INTR'}
+        -t, --timeperiod    <timeperiod>    time period to perform calculations over
+                                            can be: {'year'|'month'|'month_across_years'|'semidecade'|'season'}
+        -h, --help                          print help message
 
+- `time_periods.py`: this file contains functions to group the files based on the time period of interest, and then process the data
+
+- `utils.py`: this file contains all other utility functions the code uses
 
 ## References
 - [DSWE User Guide](https://www.usgs.gov/land-resources/nli/landsat/landsat-dynamic-surface-water-extent?qt-science_support_page_related_con=0#qt-science_support_page_related_con)
