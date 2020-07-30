@@ -199,6 +199,11 @@ def csv_to_ID_list(csv_path):
                 if product_id_search.search(header):
                     product_ids.append(cols[1])
 
+    if scene_ids == []:
+        raise Exception('no column called scene_ids')
+    if product_ids == []:
+        raise Exception('no column called product_ids')
+
     return scene_ids, product_ids
 
 
