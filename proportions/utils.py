@@ -1,18 +1,68 @@
 '''
-Utility functions for get_proportions.py
-Includes making directories and output files, 
-basic calculations, and reclassifying layers.
-
+Utility functions for proportions.py
 '''
 import numpy as np
+import sys, getopt
 import gdal
 import os
 import datetime
+from dateutil.rrule import rrule, MONTHLY 
+from dateutil.relativedelta import relativedelta
+
+def command_line_args(argv):
+    '''
+    Handle command line arguments.
+    INPUTS: 
+        argv : list of str : options and arguments from command line
+    RETURNS:
+        main_dir : str : main directory where data is located
+        DSWE_layer : str : DSWE layer to be used in calculations
+        time_period : str : time period to perform calculations over
+    '''
+    main_dir = ''
+    DSWE_layer = ''
+    time_period = ''
+    try:
+        options, remainder = getopt.getopt(argv, 'hd:l:t:', ['help','directory=', 'layer=', 'timeperiod='])
+    except getopt.GetoptError:
+        help_message()
+        sys.exit(2)
+    if options == []:
+        help_message()
+        sys.exit()
+    for opt, arg in options:
+        if opt in ('-h', '--help'):
+            help_message()
+            sys.exit()
+        elif opt in ('-d', '--directory'):
+            main_dir = arg
+        elif opt in ('-l', '--layer'):
+            DSWE_layer = arg
+        elif opt in ('-t', '--timeperiod'):
+            time_period = arg
+
+    return main_dir, DSWE_layer, time_period
+
+
+def help_message():
+    '''
+    Help message to print for usage and options of 
+    command line arguments.
+    '''
+    print('usage: proportions.py -d <directory> -l <layer> -t <timeperiod>')
+    print('\t-d, --directory\t\t<directory>\tmain directory where data is located')
+    print('\t-l, --layer\t\t<layer>\t\tDSWE layer to be used in calculations')
+    print('\t\t\t\t{\'INWM\'|\'INTR\'}')
+    print('\t-t, --timeperiod\t<timeperiod>\ttime period to perform calculations over')
+    print('\t\t\t\t{\'year\'|\'month\'|\'month_across_years\'|\'semidecade\'|\'season\'}')
+    print('\t-h, --help\t\tprint help message')
+    return
 
 
 def get_file_date(filename):
     '''
-    Uses convention of scene_id (entity_id) as filename.
+    Gets date that file data was collected; 
+    uses convention of scene_id (entity_id) as filename.
     '''
     file_year = int(filename[15:19])
     file_month = int(filename[19:21])
@@ -21,22 +71,41 @@ def get_file_date(filename):
     return file_date
 
 
-def make_dirs(main_dir):
+def get_files(main_dir, DSWE_layer):
     '''
-    Creates directories to process data and store results in.
-    INPUTS:
-        main_dir : str : path to main directory 
-            with input data in subfolders
+    Creates list of DSWE files with the layer of interest
+    and list of file dates.
+    INPUTS: 
+        main_dir : str : main directory where data is located
+        DSWE_layer : str : DSWE layer to be used in calculations
     RETURNS:
-        process_dir : str : path to processing directory
-        prop_dir : str : path to annual proprtions directory
-        dec_prop_dir : str : path to semi-decadal proportions directory
+        all_files : list of str : list of all relevant DSWE file paths
+        all_dates : list of dates : list of all file dates
     '''
-    # create output directories (subfolders in main_dir)
-    prop_dir = os.path.join(main_dir, 'proportions')
-    
+    all_files = []
+    all_dates = []
+    # look through all directories and subdirectories
+    for dirpath, dirnames, filenames in os.walk(main_dir):
+        # find all files in tree
+        for filename in filenames:
+            # if the file is the layer of interest
+            if DSWE_layer in filename:
+                all_files.append(os.path.join(dirpath, filename))
+                file_date = get_file_date(filename)
+                all_dates.append(file_date)
+    return all_files, all_dates
+
+
+def make_output_dir(main_dir, time_period):
+    '''
+    Create directory to store results in.
+    INPUTS:
+        main_dir : str : main directory where data is located
+    RETURNS:
+        prop_dir : str : path to directory where results will be stored 
+    '''
+    prop_dir = os.path.join(main_dir, f'proportions_{time_period}')
     os.makedirs(prop_dir, exist_ok=True)
-    
     return prop_dir
 
 
@@ -46,9 +115,9 @@ def find_max_extent(file, extent_0):
     ensures that no images are cropped and that 
     extent/georeferencing remains consistent
     INPUTS:
-        file : current file being processed
-        extent_0 : list : initial extent values to be 
-            overwritten; in order [minx, maxy, maxx, miny]
+        file : str : path to current file being processed
+        extent_0 : list : initial extent values to be overwritten; 
+            in order [minx, maxy, maxx, miny]
     RETURNS:
         extent_0 : list : updated extent values 
     '''
@@ -74,6 +143,41 @@ def find_max_extent(file, extent_0):
     return extent_0
 
 
+def find_season_time_range(current_time):
+    '''   
+    Find time range of a particular season.
+    INPUTS:
+        current_time : date : current time (beginning of season)
+    RETURNS:
+        current_time_range : list of int : list of months in season
+    '''
+    until_time = current_time + relativedelta(months=2)
+    
+    current_time_range = list(rrule(freq=MONTHLY,
+            dtstart=current_time, until=until_time))
+    current_time_range = [i.month for i in current_time_range]
+    return current_time_range
+
+
+def find_season(current_time_range):
+    '''
+    Assign a string to the season in the N. Hemisphere.
+    INPUTS:
+        current_time_range : list of int : list of months in the season
+    RETURNS:    
+        season : str : season in N. Hemisphere
+    '''
+    if 12 in current_time_range:
+        season = 'Winter'
+    if 3 in current_time_range:
+        season = 'Spring'
+    if 6 in current_time_range:
+        season = 'Summer'
+    if 9 in current_time_range:
+        season = 'Autumn'
+    return season
+
+
 def open_raster(file, prop_dir, max_extent):
     '''
     Open file and read as array.
@@ -89,7 +193,7 @@ def open_raster(file, prop_dir, max_extent):
     #TODO document this function
 
     raster = gdal.Open(os.path.abspath(file))
-    print("Opened:", file)
+    #print("Opened:", file)
     rastermaxextent_out= prop_dir + "/raster.tif"
     #TODO is the above needed anymore
     #Expand every rasterreted layer to the maximum extent of all data for the path/row
