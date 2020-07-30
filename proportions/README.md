@@ -4,7 +4,9 @@ This code calculates proportions of time that pixels are inundated by open water
 
 ## Code explanation
 - `proportions.py`: this is the main code, and can be run with command line arguments in your terminal
+
     `usage: proportions.py -d <directory> -l <layer> -t <timeperiod>`
+
 - `time_periods.py`: this file contains functions to group the files based on the time period of interest, and then process the data
 
 - `utils.py`: this file contains all other utility functions the code uses
