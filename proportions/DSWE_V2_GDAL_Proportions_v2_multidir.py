@@ -20,29 +20,37 @@ import datetime
 import glob
 import sys
 
+
+import pdb # FOR DEBUGGING
+
+
 # ***************************REQUIRED PATH/INPUT INFORMATION**************************
 # Specify the path for input data. This should be the output folder containing your DSWE output, each contained in their own scene specific subfolder.
 # Start year recommended to end with a 0 or 5 regardless of where your data starts.  This is for semi-decadal proportions that will span a 5 year stretch.
 # Ensure that your start year is less than the first year of your DSWE output.
 Path_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan'
 #os.path.join('~', 'DSWE_EaD', 'proportions', 'test_data', 'DSWE_out')
-Start_yr = 1985
-End_yr = 1995
+Start_yr = 1980
+End_yr = 1995 
 
 os.chdir(Path_dir)
 paths = glob.glob('*/')
 print(paths)
 pathcount=len(paths)
 
-print(pathcount)
+print('pathcount', pathcount)
 
 count=0
 for folder in paths:
+    
+    print('folder', folder)
+
+
     count+=1
     working_dir=Path_dir + '/' + folder
     os.chdir(working_dir)
 
-    print(working_dir)
+    print('working dir', working_dir)
 
 # Output directory paths auto generated.  All will be subfolders in the Path_dir
     processing_dir= working_dir + "/processing"
@@ -73,6 +81,7 @@ for folder in paths:
     print('all rasters', All_Rasters)
 
 
+
     #We only want to process the Interp Masked rasters, so we prune our list and make a new list to hold only these rasters
     Interp_Masked=[s for s in All_Rasters if s.endswith('tif')]
     Interp_Masked=[s for s in Interp_Masked if "INWM" in s]
@@ -81,6 +90,8 @@ for folder in paths:
     NumRast=len(Interp_Masked)
     print(Interp_Masked)
     print("Processing ",NumRast, " Total Scenes (All Years)")
+
+
 
     #Extent min and max to be overwritten
     M_minx=1000000000000
