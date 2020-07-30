@@ -3,15 +3,8 @@
 This code calculates proportions of time that pixels are inundated by open water and partial surface water, or never inundated. It can perform these calculations by year, month, month across all years, semi-decade, or season. The user can choose to perform calculations on interpreted (INTR) or interpreted with mask (INWM) DSWE layers.
 
 ## Code explanation
-- `proportions.py`: this is the main code, and can be run with command line arguments in your terminal.
-
+- `proportions.py`: this is the main code, and can be run with command line arguments in your terminal
     `usage: proportions.py -d <directory> -l <layer> -t <timeperiod>`
-    |------------------	|--------------	|-------------------------------------------------------------------------------------------------------------------	|
-     | -d, --directory  	| \<directory\>  	| main directory where data is located                                                                              	|
-    | -l, --layer      	| \<layer\>      	| DSWE layer to be used in calculations; can be either: {'INWM' | 'INTR'}                                            	|
-    | -t, --timeperiod 	| \<timeperiod\> 	| time period to perform calculations over; can be: {'year' | 'month' | 'month\_across\_years' | 'semidecade' | 'season'} 	|
-    | -h, --help       	|              	| print help message                                                                                                	|
-
 - `time_periods.py`: this file contains functions to group the files based on the time period of interest, and then process the data
 
 - `utils.py`: this file contains all other utility functions the code uses
