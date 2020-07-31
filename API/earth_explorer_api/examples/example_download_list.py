@@ -7,7 +7,7 @@ labelled "product_IDs"
 import sys
 sys.path.insert(1, '../')
 
-from use_api import download_list
+from use_api import download_list, untar
 
 # output directory for downloaded data
 output_dir = '/home/mad/DSWE_EaD/test_data/scenes'
@@ -20,7 +20,7 @@ dataset = 'SP_TILE_DSWE'
 product = 'DSWE'
 
 # download all datasets in the list
-download_list(output_dir, dataset, csv_path)
+download_list(output_dir, dataset, csv_path, num_download_threads=1)
 
 # untar the downloaded files
 untar(output_dir)

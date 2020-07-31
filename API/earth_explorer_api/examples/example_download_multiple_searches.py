@@ -28,7 +28,7 @@ min_cloud_cover = 0
 max_cloud_cover = 50
 
 # download 5 files from each year for 30 years
-years = np.arange(2003, 2015)
+years = np.arange(2007, 2019)
 for year in years:
     start_date = str(year) + '-01-01'
     end_date = str(year+1) + '-01-01'
