@@ -1,3 +1,6 @@
 __pycache__
-.ipynb_checkpoints
-.swp
+*.docx
+*.ipynb_checkpoints
+*.swp
+test_data/
+practice/
