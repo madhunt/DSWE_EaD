@@ -109,11 +109,11 @@ def download_search(output_dir, dataset, product, **kwargs):
     # make output directory (if doesn't yet exist)
     os.makedirs(output_dir, exist_ok=True)
     
-    for i, scene in enumerate(scenesi, start=1):
-        print(f'downloading scene {i} of {len(scenes)}')
-        
+    for i, scene in enumerate(scenes, start=1):
+        print(f'Downloading scene {i} of {len(scenes)}')
+
         # get scene identifier
-        entity_id = scene['entityid']
+        entity_id = scene['entityId']
         # use scene identifier as filename 
         filename = os.path.join(output_dir, entity_id)
         

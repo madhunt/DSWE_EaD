@@ -9,7 +9,7 @@ import numpy as np
 from use_api import download_search, untar
 
 # output directory for downloaded data
-output_dir = '/home/mad/DSWE_EaD/proportions/test_data/20yrspan_take2'
+output_dir = '/home/mad/DSWE_EaD/test_data/proportions_test_0731'
 
 # if using DSWE datasets, keep these two variables the saem
 dataset = 'SP_TILE_DSWE' 
@@ -22,13 +22,17 @@ longitude = -82.9960
 min_cloud_cover = 0
 max_cloud_cover = 50
 
-# download 5 files from each year for 10 years
-years = np.arange(1988, 1996)
+# download 5 files from each year for 30 years
+years = np.arange(1995, 2015)
 for year in years:
     start_date = str(year) + '-01-01'
     end_date = str(year+1) + '-01-01'
     max_results = 5
-    download_search(output_dir, dataset, product, latitude=latitude, longitude=longitude, start_date=start_date, end_date=end_date, min_cloud_cover=min_cloud_cover, max_cloud_cover=max_cloud_cover, max_results=max_results)
+    download_search(output_dir, dataset, product, 
+            latitude=latitude, longitude=longitude, 
+            start_date=start_date, end_date=end_date,
+            min_cloud_cover=min_cloud_cover, max_cloud_cover=max_cloud_cover,
+            max_results=max_results)
 
 # untar the downloaded files in the same directory
 untar(output_dir)
