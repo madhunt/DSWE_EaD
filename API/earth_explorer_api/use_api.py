@@ -14,9 +14,14 @@ def login():
     Call API and login
     '''
     # get login information
-    username = getpass.getpass(prompt='EROS Username:')
-    print(f'EROS Username: {username}')
-    password = getpass.getpass()
+    username = os.environ.get('EROS_USERNAME','')
+    if username == '':
+        username = getpass.getpass(prompt='EROS Username:')
+        print(f'EROS Username: {username}')
+
+    password = os.environ.get('EROS_PASSWORD', '')
+    if password == '':
+        password = getpass.getpass()
     
     # login to EROS account
     api = eeapi.API(username, password)
