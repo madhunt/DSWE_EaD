@@ -230,27 +230,34 @@ def reclassify(raster):
     REFERENCES:
         LANDSAT DSWE Product Guide, pg. 10
     '''
-    # INVALID observations: no data or cloud/snow
-    invalid = np.zeros(np.shape(raster))
-    invalid[(raster == 9)|(raster == 255)] = float('nan')
+    # VALID observations: NOT no data or cloud/snow
+    valid = np.ones(np.shape(raster))
+    valid[(raster == 9)|(raster == 255)] = 0
 
     # NO INUNDATION: nonwater
-    nonwater = (raster == 0).astype(float) + invalid
+    nonwater = (raster == 0).astype(float)
 
     # OPEN SURFACE WATER: water, high/mod confidence
-    open_sw = ((raster == 1)|(raster == 2)).astype(float) + invalid
+    open_sw = ((raster == 1)|(raster == 2)).astype(float)
 
     # PARTIAL SURFACE WATER: wetland, water low confidence
-    partial_sw = ((raster == 3)|(raster == 4)).astype(float) + invalid
-    return open_sw, partial_sw, nonwater
+    partial_sw = ((raster == 3)|(raster == 4)).astype(float)
+    return open_sw, partial_sw, nonwater, valid
 
 
-def calculate_proportion(data, total_num):
+def calculate_proportion(data, total):
     '''
     Calculate proportion of time each pixel in data is spent
     in that state, out of 1.0.
     '''
-    proportion = data / total_num
+    # taking advantage of the fact that array([0])/array([0])=nan
+        # so silence the invalid value warnings
+    with np.errstate(divide='ignore', invalid='ignore'):
+        proportion = data / total
+
+    # now set those nans we took advantage of to 255
+        # as these are invalid pixels
+    proportion[np.isnan(proportion)] = 255
     return proportion
 
 
@@ -279,5 +286,6 @@ def create_output_file(data, data_str, prop_dir, time_str, geo_transform, projec
     outdata = driver.Create(file_path, shape[1], shape[0], 1, gdal.GDT_Byte)
     outdata.SetGeoTransform(geo_transform)
     outdata.SetProjection(projection)
+    outdata.GetRasterBand(1).SetNoDataValue(255)
     outdata.GetRasterBand(1).WriteArray(data)
     outdata.FlushCache()

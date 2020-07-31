@@ -10,7 +10,7 @@ def process_files(current_files, prop_dir, max_extent, time_str):
     '''
     Process files in the current time period of interest.
     INPUTS:
-        current_files : list of str : list of paths to current file
+        current_file s : list of str : list of paths to current file
         prop_dir : str : path to directory to store processed data
         max_extent : list of float : max extent of all files;
             in form [minx, maxy, maxx, miny]
@@ -33,6 +33,7 @@ def process_files(current_files, prop_dir, max_extent, time_str):
             open_sw = np.zeros(shape)
             partial_sw = np.zeros(shape)
             nonwater = np.zeros(shape)
+            total = np.zeros(shape)
         else:
             # ensure that geo_transform and projection stay the same
             #XXX unsure if they would ever change
@@ -42,19 +43,19 @@ def process_files(current_files, prop_dir, max_extent, time_str):
         projection_0 = projection
 
         # reclassify layer and add to previous
-        open_sw_new, partial_sw_new, nonwater_new = utils.reclassify(raster)
+        open_sw_new, partial_sw_new, nonwater_new, valid_new = utils.reclassify(raster)
+        
+        # add new layer to previous
         open_sw += open_sw_new
         partial_sw += partial_sw_new
         nonwater += nonwater_new
-
-    # maximum number any given pixel can be
-    total_num = len(current_files)
+        total += valid_new
 
     # calculate proportions open and partial surface water
-    open_sw_prop = utils.calculate_proportion(open_sw, total_num)
-    partial_sw_prop = utils.calculate_proportion(partial_sw, total_num)
-    nonwater_prop = utils.calculate_proportion(nonwater, total_num)
-
+    open_sw_prop = utils.calculate_proportion(open_sw, total)
+    partial_sw_prop = utils.calculate_proportion(partial_sw, total)
+    nonwater_prop = utils.calculate_proportion(nonwater, total)
+    
     # create output files
     prop_data = [open_sw_prop, partial_sw_prop, nonwater_prop]
     data_str = ['open_sw', 'partial_sw', 'nonwater']
