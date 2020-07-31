@@ -1,0 +1,12 @@
+0 brown
+0.1 red
+0.2 orange
+0.3 yellow
+0.4 green
+0.5 aqua
+0.6 cyan
+0.7 blue
+0.8 indigo
+0.9 violet
+1.0 grey
+255 black
