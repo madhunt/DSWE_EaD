@@ -10,55 +10,6 @@ import numpy as np
 from dateutil.rrule import rrule, MONTHLY
 from dateutil.relativedelta import relativedelta
 
-def command_line_args(argv):
-    '''
-    Handle command line arguments.
-    INPUTS:
-        argv : list of str : options and arguments from command line
-    RETURNS:
-        main_dir : str : main directory where data is located
-        dswe_layer : str : DSWE layer to be used in calculations
-        time_period : str : time period to perform calculations over
-    '''
-    main_dir = ''
-    dswe_layer = ''
-    time_period = ''
-    try:
-        options, _ = getopt.getopt(argv, 'hd:l:t:',
-                ['help', 'directory=', 'layer=', 'timeperiod='])
-    except getopt.GetoptError:
-        help_message()
-        sys.exit(2)
-    if options == []:
-        help_message()
-        sys.exit()
-    for opt, arg in options:
-        if opt in ('-h', '--help'):
-            help_message()
-            sys.exit()
-        elif opt in ('-d', '--directory'):
-            main_dir = arg
-        elif opt in ('-l', '--layer'):
-            dswe_layer = arg.upper()
-        elif opt in ('-t', '--timeperiod'):
-            time_period = arg.lower()
-
-    return main_dir, dswe_layer, time_period
-
-
-def help_message():
-    '''
-    Help message to print for usage and options of
-    command line arguments.
-    '''
-    print('usage: proportions.py -d <directory> -l <layer> -t <timeperiod>')
-    print('\t-d, --directory\t\t<directory>\tmain directory where data is located')
-    print('\t-l, --layer\t\t<layer>\t\tDSWE layer to be used in calculations')
-    print('\t\t\t\t{\'INWM\'|\'INTR\'}')
-    print('\t-t, --timeperiod\t<timeperiod>\ttime period to perform calculations over')
-    print('\t\t\t\t{\'year\'|\'month\'|\'month_across_years\'|\'semidecade\'|\'season\'}')
-    print('\t-h, --help\t\tprint help message')
-
 
 def get_file_date(filename):
     '''
@@ -198,12 +149,15 @@ def open_raster(file, prop_dir, max_extent):
     raster = gdal.Open(os.path.abspath(file))
 
     # expand layer to max extent of all data for the path/row
-    raster_max_extent = os.path.join(prop_dir, 'raster.tif')
+    raster_max_extent = os.path.join(prop_dir, 'raster_temp.tif')
     raster = gdal.Translate(raster_max_extent, raster, projWin=max_extent)
-
+    
     geo_transform = raster.GetGeoTransform()
     projection = raster.GetProjection()
     raster = raster.GetRasterBand(1).ReadAsArray()
+
+    # remove temp file
+    os.remove(raster_max_extent)
     return raster, geo_transform, projection
 
 
@@ -248,12 +202,12 @@ def reclassify(raster):
 def calculate_proportion(data, total):
     '''
     Calculate proportion of time each pixel in data is spent
-    in that state, out of 1.0.
+    in that state, out of 100%.
     '''
     # taking advantage of the fact that array([0])/array([0])=nan
         # so silence the invalid value warnings
     with np.errstate(divide='ignore', invalid='ignore'):
-        proportion = data / total
+        proportion = data / total * 100.
 
     # now set those nans we took advantage of to 255
         # as these are invalid pixels
@@ -276,7 +230,7 @@ def create_output_file(data, data_str, prop_dir, time_str, geo_transform, projec
         output file in output_dir
     '''
     # create output filename
-    filename = time_str + data_str + '_proportion.tif'
+    filename = time_str + '_' + data_str + '_proportion.tif'
     file_path = os.path.join(prop_dir, filename)
 
     shape = data.shape
