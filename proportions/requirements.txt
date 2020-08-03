@@ -1,2 +1,3 @@
 numpy==1.17.4
 gdal==3.1.2
+python_dateutil==2.8.1

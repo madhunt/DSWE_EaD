@@ -68,7 +68,7 @@ if __name__ == '__main__':
             type=str.lower, 
             choices=['year', 'month', 'month_across_years', 'season', 'multiyear'], 
             help='time period to process files by')
-    parser.add_argument('-m', 
+    parser.add_argument('-y', 
             metavar='NUM_YEARS', dest='multiyear',
             type=int, required=False, 
             help='integer number of years to process files by; only required if timeperiod=multiyear')

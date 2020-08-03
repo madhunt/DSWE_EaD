@@ -1,15 +1,16 @@
 # Recolor output images from proportions code
-
-Since the output images from `proportions.py` are scaled from 0 to 1 (with invalid pixels as 255), the image appears all black in most image viewers. The simple bash script in `recolor.sh` will recolor the output images using the color scheme in `col.txt`.
+Since the output images from `proportions.py` are scaled from 0 to 100 (with invalid pixels as 255), the image appears all black in most image viewers. The simple bash script in `recolor.sh` will recolor the output images using the color scheme in a file `col.txt` using gdaldem.
 
 ## To use
-Copy `col.txt` to the output directory from `proportions.py`, and run `recolor.sh` in that directory. The script will make a new folder called 'recolored\_images', which will contain the recolored images.
+Copy the colormap of your choice to `col.txt` in the output directory of the processed data, and run `recolor.sh` in that directory (make sure you make it executable). The script will make a new folder called 'recolored\_images', which will contain the recolored images.
 
 ## Make a different color scheme
-Feel free to change to contents of `col.txt`, which lists the pixel value followed by the color, to create your own color scheme.
+Several color schemes are provided in other text files. Feel free to create your own color scheme in `col.txt`, by listing the pixel value followed by the color.
 
-Supported colors are: white, black, red, green, blue, yellow, magenta, cyan, aqua, grey/gray, orange, brown, purple/violet and indigo. RGB values for colors can be used as well. See [here](https://gdal.org/programs/gdaldem.html) for more information.
+Supported colors are: white, black, red, green, blue, yellow, magenta, cyan, aqua, grey/gray, orange, brown, purple/violet and indigo. RGB values for colors can be used as well.
 
-## Requirements
-Requires GDAL library to use gdaldem.
+## References
+- [gdaldem documentation](https://gdal.org/programs/gdaldem.html)
+
+
 
