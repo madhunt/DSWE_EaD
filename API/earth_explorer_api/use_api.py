@@ -136,7 +136,59 @@ def download_search(output_dir, dataset, product, **kwargs):
     return
 
 
-def download_list(output_dir, dataset, csv_path, num_download_threads=None):
+def download_list(output_dir, dataset, product, csv_path):
+    '''
+    Download scenes from a given list of scene IDs.
+    INPUTS:
+        output_dir: str : path to directory for downloaded data
+        dataset : str : name to identify dataset
+        product : str or list of str : string (or list the 
+            same length as scene_ids) to identify the 
+            product(s); called 'downloadCode' in
+            download_options response
+        scene_ids_path : str : path to list of scene ids 
+            (csv file)
+    RETURNS:
+        tar files downloaded in output_dir
+    '''
+    api = login()
+
+    print(api.key)
+
+    breakpoint()
+
+    scene_ids, product_ids = csv_to_ID_list(csv_path)
+
+    scene_ids = api.id_lookup(dataset, product_ids, 'entityId')
+
+
+    for i, scene in enumerate(scene_ids):
+        print(f'Downloading scene {i+1} of {len(scene_ids)}')
+        
+        #product = product_ids[i]
+    
+        # create output filename
+        filename = os.path.join(output_dir, scene)
+
+        # get download information
+        response = api.download(dataset, product, scene)
+        
+        if response == []:
+            print('incorrect dataset')
+            continue
+
+        url = response[0]['url']
+        
+        # download dataset
+        urllib.request.urlretrieve(url, filename)
+    
+    # logout of EROS account
+    api.logout()
+    
+    return
+
+
+def download_list_multithread(output_dir, dataset, csv_path, num_download_threads=None):
     '''
     Download scenes from a given list of scene IDs.
     INPUTS:

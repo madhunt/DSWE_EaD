@@ -27,7 +27,7 @@ def main(argv):
     # get all INTR files
     all_files = get_files(main_dir)
 
-    for file in all_files:
+    for i, file in enumerate(all_files, start=1):
         # open raster and calculate percent valid data
         raster = open_raster(file)
         percent = percent_valid(raster)
@@ -44,6 +44,8 @@ def main(argv):
         
         # move data to good or bad folder
         shutil.move(filedir, path_to)
+
+        print(f'{i} out of {len(all_files)} files sorted')
 
 if __name__ == '__main__':
     main(sys.argv[1:])

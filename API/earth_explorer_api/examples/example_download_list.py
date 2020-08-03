@@ -10,17 +10,21 @@ sys.path.insert(1, '../')
 from use_api import download_list, untar
 
 # output directory for downloaded data
-output_dir = '/home/mad/DSWE_EaD/test_data/scenes'
+output_dir = '/home/mad/DSWE_EaD/test_data/list_scenes'
 
 # path for list of scene IDs (csv format)
 csv_path = '/home/mad/DSWE_EaD/test_data/id_list.csv'
 
 # if using DSWE datasets, keep these two variables the same
-dataset = 'SP_TILE_DSWE'
-product = 'DSWE'
+#dataset = 'SP_TILE_DSWE'
+#product = 'DSWE'
+#dataset = 'LSR_LANDSAT_TM_C1'
+dataset = 'LANDSAT_TM_C1'
+product = 'poop'
+
 
 # download all datasets in the list
-download_list(output_dir, dataset, csv_path, num_download_threads=1)
+download_list(output_dir, dataset, product, csv_path)
 
 # untar the downloaded files
 untar(output_dir)
