@@ -1,12 +1,13 @@
 '''
 Main code to calculate proportions.
 '''
+import argparse
 import sys
 import os
 import utils
 import time_periods as tp
 
-def main(argv):
+def main(main_dir, dswe_layer, time_period, multiyear):
     '''
     Main code to calculate proportions.
     INPUTS:
@@ -14,9 +15,6 @@ def main(argv):
     RETURNS:
         processes and saves data
     '''
-    # set up command line arguments
-    main_dir, dswe_layer, time_period = utils.command_line_args(argv)
-
     # move to main directory
     os.chdir(main_dir)
 
@@ -26,6 +24,8 @@ def main(argv):
     print(f'Processing {num_files} total scenes from {min(all_dates)} to {max(all_dates)}')
 
     # make output directory
+    if time_period == 'multiyear':
+        time_period = time_period + '_' + str(multiyear)
     prop_dir = utils.make_output_dir(main_dir, time_period)
 
     # initialize extent to be overwritten
@@ -46,14 +46,36 @@ def main(argv):
         tp.process_by_month_across_years(all_files, all_dates, prop_dir, max_extent)
     elif time_period == 'season':
         tp.process_by_season(all_files, all_dates, prop_dir, max_extent)
-    elif time_period == 'semidecade':
-        tp.process_by_semidecade(all_files, all_dates, prop_dir, max_extent)
+    elif 'multiyear' in time_period:
+        tp.process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear)
 
-    else:
-        raise Exception(f'{time_period} is not a valid time period')
 
     print('Processing done!')
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    # get command line arguments
+    parser = argparse.ArgumentParser(description='Calculate proportions of pixels inundated with open or partial surface water over time.')
+
+    parser.add_argument('main_dir', 
+            metavar='DIRECTORY_PATH',
+            help='main directory where data is located')
+    parser.add_argument('dswe_layer', 
+            type=str.upper, 
+            choices=['INWM', 'INTR'], 
+            help='DSWE layer to be used in calculations' )
+    parser.add_argument('time_period',
+            type=str.lower, 
+            choices=['year', 'month', 'month_across_years', 'season', 'multiyear'], 
+            help='time period to process files by')
+    parser.add_argument('-m', 
+            metavar='NUM_YEARS', dest='multiyear',
+            type=int, required=False, 
+            help='integer number of years to process files by; only required if timeperiod=multiyear')
+
+    args = parser.parse_args()
+
+    if args.time_period == 'multiyear' and args.multiyear == None:
+        parser.error('for multiyear time period, must specify number of years with -m NUM_YEARS')
+    
+    main(**vars(args))

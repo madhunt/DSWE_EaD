@@ -55,7 +55,7 @@ def process_files(current_files, prop_dir, max_extent, time_str):
     open_sw_prop = utils.calculate_proportion(open_sw, total)
     partial_sw_prop = utils.calculate_proportion(partial_sw, total)
     nonwater_prop = utils.calculate_proportion(nonwater, total)
-    
+
     # create output files
     prop_data = [open_sw_prop, partial_sw_prop, nonwater_prop]
     data_str = ['open_sw', 'partial_sw', 'nonwater']
@@ -158,33 +158,37 @@ def process_by_month_across_years(all_files, all_dates, prop_dir, max_extent):
         print(f'Proportions completed for {time_str}')
 
 
-def process_by_semidecade(all_files, all_dates, prop_dir, max_extent):
+def process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear):
     '''
-    Process files semi-decadally (every 5 years)
+    Process files by group of years
     INPUTS:
         all_files : list of str : list of paths to all DSWE files of interest
         all_dates : list of dates : list of dates of files of interest
         prop_dir : str : path to save output data
         max_extent : list of float : max extent of all files;
             in form [minx, maxy, maxx, miny]
+        multiyear : int : group of years to process files by
     RETURNS:
         processed data saved in prop_dir
     '''
     all_years = [i.year for i in all_dates]
     start_year = min(all_years)
+    start_year = start_year - start_year%multiyear
     end_year = max(all_years)
 
-    for current_time in range(start_year, end_year+5, 5):
+    for current_time in range(start_year, end_year+multiyear, multiyear):
+            
         current_files = []
-        # make a list of files in the current semi-decade
+        # make a list of files in the current group of years
             # of interest
         for i, file in enumerate(all_files):
             file_time = all_years[i]
-            if (file_time - file_time%5) == current_time:
+            
+            if (file_time - file_time%multiyear) == current_time:
                 current_files.append(file)
 
         # process files in current range of interest
-        time_str = str(current_time) + '_' + str(current_time+4)
+        time_str = str(current_time) + '_' + str(current_time+multiyear-1)
         process_files(current_files, prop_dir, max_extent, time_str)
         print(f'Proportions completed for {time_str}')
 
