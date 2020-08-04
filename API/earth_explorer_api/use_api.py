@@ -3,6 +3,7 @@ Functions to search scenes and download data using the EarthExplorer API
 '''
 import earthExplorerAPI as eeapi
 import getpass
+import json
 import os
 import urllib.request
 import tarfile
@@ -28,6 +29,42 @@ def login():
     # login to EROS account
     api = eeapi.API(username, password)
     return api
+
+
+def search_datasets(**kwargs):
+    '''
+    Search available datasets. By passing no parameters, all
+    available datasets are returned.
+    OPTIONAL INPUTS:
+        dataset_str : str : used as a filter with wildcards
+            at beginning and end of supplied value
+        public_only : bool : if True, filter out datasets
+            not accessible to unauthenticated users;
+            defaults to False
+        latitude : float : decimal degree coordinate in
+            EPSG:4326 projection
+        longitude : float : decimal degree coordinate in
+            EPSG:4326 projection
+        bbox : tuple : (xmin, ymin, xmax, ymax) of the
+            bounding box
+        start_date : str : YYYY-MM-DD
+        end_date : str : YYYY-MM-DD; defaults to start_date            if not given
+    RETURNS:
+        search_results : dict : results of the search; also
+            printed to screen
+    '''
+    # login to EROS account
+    api = login()
+
+    search_results = api.dataset_search(**kwargs)
+
+    print(json.dumps(search_results, indent=4))
+    
+    # logout of EROS account
+    api.logout()
+
+    return search_results
+
 
 
 def search(dataset, **kwargs):
@@ -72,7 +109,7 @@ def search(dataset, **kwargs):
     return scenes
 
 
-def download_search(output_dir, dataset, product, **kwargs):
+def download_search(output_dir, dataset, download_code=None, **kwargs):
     '''
     Use EarthExplorer API to search and download scenes 
     as tar files.
@@ -124,8 +161,12 @@ def download_search(output_dir, dataset, product, **kwargs):
         # use scene identifier as filename 
         filename = os.path.join(output_dir, entity_id)
         
+        # get download code if unknown
+        if download_code == None:
+            download_code, _ = api.download_options(dataset, entity_id)
+
         # get download information
-        response = api.download(dataset, product, entity_id)
+        response = api.download(dataset, download_code, entity_id)
         url = response[0]['url']
         
         # download dataset
@@ -136,7 +177,7 @@ def download_search(output_dir, dataset, product, **kwargs):
     return
 
 
-def download_list(output_dir, dataset, product, csv_path):
+def download_list(output_dir, csv_path, scene_ids=True, dataset=None):
     '''
     Download scenes from a given list of scene IDs.
     INPUTS:
@@ -153,28 +194,39 @@ def download_list(output_dir, dataset, product, csv_path):
     '''
     api = login()
 
-    print(api.key)
+    #TODO get datasets before you can do anything else
+        # do like a for loop through the datasets
+            # and corresponding ids
 
-    breakpoint()
 
-    scene_ids, product_ids = csv_to_ID_list(csv_path)
+    if scene_ids == True:
+        # csv contains scene IDs
+        scene_ids = csv_to_id_list(csv_path, 'scene')
 
+    elif scene_ids == False:
+        # csv contains product IDs
+        product_ids = csv_to_id_list(csv_path, 'product')
+        scene_ids = api.id_lookup(dataset, product_ids, input_field='displayId')
+
+    
+    #TODO add this as an option
     scene_ids = api.id_lookup(dataset, product_ids, 'entityId')
 
 
-    for i, scene in enumerate(scene_ids):
+    for i, entity_id in enumerate(scene_ids):
         print(f'Downloading scene {i+1} of {len(scene_ids)}')
         
-        #product = product_ids[i]
-    
         # create output filename
-        filename = os.path.join(output_dir, scene)
+        filename = os.path.join(output_dir, entity_id)
+
+        # get download code
+        download_code, _ = api.download_options(dataset, entity_id)
 
         # get download information
-        response = api.download(dataset, product, scene)
+        response = api.download(dataset, download_code, entity_id)
         
         if response == []:
-            print('incorrect dataset')
+            raise Exception('No dataset matches the inputs provided')
             continue
 
         url = response[0]['url']
@@ -265,7 +317,7 @@ def download_list_multithread(output_dir, dataset, csv_path, num_download_thread
     return
 
 
-def csv_to_ID_list(csv_path):
+def csv_to_id_list(csv_path, header_str):
     '''
     Convert csv file to list
     INPUTS: 
@@ -273,9 +325,8 @@ def csv_to_ID_list(csv_path):
     RETURNS:
         data_list : list : csv data in list format
     '''
-
-    scene_ids = []
-    product_ids = []
+    # csv contains scene IDs
+    ids = []
 
     with open(csv_path, newline='') as f:
         reader = csv.DictReader(f)
@@ -283,19 +334,16 @@ def csv_to_ID_list(csv_path):
         for row in reader:
             for cols in row.items():
                 header = cols[0]
-                scene_id_search = re.compile(r'scene[ _]id', flags=re.IGNORECASE)
-                product_id_search = re.compile(r'product[ _]id', flags=re.IGNORECASE)
-                if scene_id_search.search(header):
-                    scene_ids.append(cols[1])
-                if product_id_search.search(header):
-                    product_ids.append(cols[1])
+                id_search = re.compile(f'{header_str}[ _]id', flags=re.IGNORECASE)
+                
+                print(id_search)
 
-    if scene_ids == []:
-        raise Exception('no column called scene_ids')
-    if product_ids == []:
-        raise Exception('no column called product_ids')
+                if id_search.search(header):
+                    ids.append(cols[1])
+    if ids == []:
+        raise Exception(f'No column called {header_str} in CSV')
 
-    return scene_ids, product_ids
+    return ids 
 
 
 def untar(output_dir):

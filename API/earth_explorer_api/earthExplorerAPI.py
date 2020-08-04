@@ -4,7 +4,6 @@ Large parts of this code are based on:
     https://github.com/yannforget/landsatxplore
     MIT License
 '''
-
 import requests
 import json
 from datamodels import spatial_filter, temporal_filter
@@ -17,6 +16,7 @@ class API(object):
         self.version = version
         self.endpoint = f'https://earthexplorer.usgs.gov/inventory/json/v/{version}/'
         self.key = self.login(username, password)
+
 
     def request(self, request_code, **kwargs):
         '''
@@ -43,6 +43,7 @@ class API(object):
         data = response['data']
         return data
 
+
     def login(self, username, password):
         '''
         Authenticate by logging in to EROS account and get an API key
@@ -61,15 +62,59 @@ class API(object):
         key = response['data']
         return key
 
+
     def logout(self):
         '''
         Log out of EROS account and invalidate API key
         '''
         self.request('logout')
 
-    def search(self, dataset, latitude=None, longitude=None, bbox=None, 
+
+    def dataset_search(self, dataset=None, public_only=False,
+                latitude=None, longitude=None, bbox=None,
+                start_date=None, end_date=None):
+        '''
+        Search available datasets. By passing no parameters, all
+        available datasets are returned.
+        OPTIONAL INPUTS:
+            dataset_str : str : used as a filter with wildcards
+                at beginning and end of supplied value
+            public_only : bool : if True, filter out datasets
+                not accessible to unauthenticated users;
+                defaults to False
+            latitude : float : decimal degree coordinate in
+                EPSG:4326 projection
+            longitude : float : decimal degree coordinate in
+                EPSG:4326 projection
+            bbox : tuple : (xmin, ymin, xmax, ymax) of the
+                bounding box
+            start_date : str : YYYY-MM-DD
+            end_date : str : YYYY-MM-DD; defaults to start_date
+                if not given
+        RETURNS:
+            results : list of dict : results of the 
+                search; also printed to screen
+        '''
+        # get request parameters
+        params = {'publicOnly': public_only}
+        if dataset:
+            params.update(datasetName=dataset)
+        if latitude and longitude:
+            params.update(spatialFilter=spatial_filter(latitude, longitude))
+        if bbox: 
+            params.update(spatialFilter=spatial_filter(*bbox))
+        if start_date:
+            params.update(temporalFilter=temporal_filter(start_date, end_date))
+
+        results = self.request('datasets', **params)
+        return results
+
+
+    def search(self, dataset, 
+                latitude=None, longitude=None, bbox=None,
                 start_date=None, end_date=None, months=None,
-                include_unknown_cloud_cover=True, min_cloud_cover=0, max_cloud_cover=100,
+                include_unknown_cloud_cover=True,
+                min_cloud_cover=0, max_cloud_cover=100,
                 additional_criteria=None, max_results=20):
         '''
         Search for scenes based on various criteria
@@ -110,6 +155,7 @@ class API(object):
 
         return search_results 
 
+
     def id_lookup(self, dataset, id_list, input_field='entityId'):
         '''
         Translate between entity ID (scene identifiers) and display ID (product identifiers)
@@ -131,6 +177,7 @@ class API(object):
         new_id_list = list(response.values())
         return new_id_list
 
+
     def metadata(self, dataset, id_list):
         '''
         Get metadata for a scene or list of scenes.
@@ -151,33 +198,6 @@ class API(object):
         results = response['data']
         return results
 
-    def dataset_search(self, dataset=None, latitude=None, longitude=None, bbox=None, 
-                start_date=None, end_date=None):
-        '''
-        Search available datasets. By passing no parameters, all available datasets are returned.
-        INPUTS:
-            dataset : str, optional : dataset name; 
-                limit results against public dataset name with wildcards at beginning and end
-            latitude : float, optional : decimal degree coordinate in EPSG:4326 projection
-            longitude : float, optional : decimal degree coordinate in EPSG:4326 projection
-            bbox : tuple, optional : (xmin, ymin, xmax, ymax) of the bounding box
-            start_date : str, optional : YYYY-MM-DD
-            end_date : str, optional : YYYY-MM-DD; defaults to start_date if not given
-        RETURNS:
-            results : dict : results of the search as a dictionary
-        '''
-        params = {'datasetName': dataset}
-        if latitude and longitude:
-            params.update(spatialFilter=spatial_filter(latitude, longitude))
-        if bbox: 
-            params.update(spatialFilter=spatial_filter(*bbox))
-        if start_date:
-            params.update(temporalFilter=temporal_filter(start_date, end_date))
-
-        response = self.request('datasets', **params)
-
-        results = response['data']
-        return results
 
     def download(self, dataset, download_code, entity_ids):
         '''
@@ -195,6 +215,7 @@ class API(object):
         response = self.request('download', **params)
         return response
 
+
     def download_options(self, dataset, entity_ids):
         '''
         This function will provide download options metadata, including the "downloadCode" needed to put in as the "product" when downloading files
@@ -202,11 +223,10 @@ class API(object):
         '''
         params = {'datasetName': dataset,
                     'entityIds': entity_ids}
-        response = self.request('downloadoptions')
 
-        return response
+        response = self.request('downloadoptions', **params)
+        response = response[0]
+        download_options = response['downloadOptions'][0]
+        download_code = download_options['downloadCode']
 
-
-
-
-
+        return download_code, response
