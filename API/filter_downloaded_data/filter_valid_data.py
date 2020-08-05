@@ -3,20 +3,18 @@ Sorts data into good and bad directories, depending if
 the number of valid pixels in a raster is over a certain
 percent.
 '''
+import argparse
 import shutil
-import sys
 import os
 
 from utils import *
 
-def main(argv):
+def main(main_dir, percent):
     '''
     Takes a directory of DSWE data and sorts files into
     good or bad folders, depending if the percentage of 
     valid pixels in the data is over a certain percent.
     '''
-    # get command line arguments
-    main_dir, percent_good = command_line_args(argv)
 
     # make good and bad directories
     good_data = os.path.join(main_dir, 'good_data')
@@ -48,4 +46,17 @@ def main(argv):
         print(f'{i} out of {len(all_files)} files sorted')
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    #main(sys.argv[1:])
+    # get command line arguments
+    parser = argparse.ArgumentParser(description='')
+
+    parser.add_argument('main_dir',
+                metavar='DIRECTORY_PATH', type=str,
+                help='main directory where DSWE data is located')
+    parser.add_argument('percent',
+                metavar='PERCENT', type=float,
+                help='desired percentage for valid data in a given file (float, 0-100)')
+
+    args = parser.parse_args()
+
+    main(**vars(args))

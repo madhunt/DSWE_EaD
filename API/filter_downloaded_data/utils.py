@@ -2,53 +2,9 @@
 Utility functions for filter_valid_data.py
 '''
 import getopt
-import sys
 import os
 import gdal
 import numpy as np
-
-def command_line_args(argv):
-    '''
-    Handle command line arguments.
-    INPUTS:
-        argv : list : options and arguments from command line
-    RETURNS:
-        main_dir : str : path where data is located
-        percent-good : int : desired percentage of valid 
-            data in a given file
-    '''
-    main_dir = ''
-    percent_good = ''
-    try:
-        options, _ = getopt.getopt(argv, 'hd:p:', 
-                ['help', 'directory=', 'percent='])
-    except getopt.GetoptError:
-        help_message()
-        sys.exit()
-    if options == []:
-        help_message()
-        sys.exit()
-    for opt, arg in options:
-        if opt in ('-h', '--help'):
-            help_message()
-            sys.exit()
-        elif opt in ('-d','--directory'):
-            main_dir = arg
-        elif opt in ('-p', '--percent'):
-            percent_good = float(arg)
-    return main_dir, percent_good
-
-
-def help_message():
-    '''
-    Help message to print for usage and options of
-    command line arguments.
-    '''
-    print('usage: filter_valid_data.py -d <directory> -p <percent>')
-    print('\t-d, --directory\t\t<directory>\tmain directory where data is located')
-    print('\t-p, --percent\t\t<percent>\tdesired percentage of valid data in a given file (0-100)')
-    print('\t-h, --help\t\t\t\tprint help message')
-
 
 def get_files(main_dir):
     '''
