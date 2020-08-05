@@ -28,12 +28,12 @@ csv_path = '/home/mad/DSWE_EaD/test_data/id_list.csv'
 
 
 # download all datasets in the list
-#download_list(output_dir, csv_path, scene_ids=False, dataset=None)
+download_list(output_dir, csv_path, dataset=None, scene_ids=False)
 
 
 
 # test dataset search
-search_datasets()
+#search_datasets()
 
 
 

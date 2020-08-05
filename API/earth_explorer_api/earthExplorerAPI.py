@@ -225,8 +225,11 @@ class API(object):
                     'entityIds': entity_ids}
 
         response = self.request('downloadoptions', **params)
+
+        if response == []:
+            raise Exception('No response from EarthExplorer; no download options')
+
         response = response[0]
         download_options = response['downloadOptions'][0]
         download_code = download_options['downloadCode']
-
         return download_code, response
