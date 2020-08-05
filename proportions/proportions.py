@@ -2,7 +2,6 @@
 Main code to calculate proportions.
 '''
 import argparse
-import sys
 import os
 import utils
 import time_periods as tp
@@ -58,8 +57,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Calculate proportions of pixels inundated with open or partial surface water over time.')
 
     parser.add_argument('main_dir', 
-            metavar='DIRECTORY_PATH',
-            help='main directory where data is located')
+            metavar='DIRECTORY_PATH', type=str,
+            help='main directory where DSWE data is located')
     parser.add_argument('dswe_layer', 
             type=str.upper, 
             choices=['INWM', 'INTR'], 
