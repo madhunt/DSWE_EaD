@@ -1,0 +1,72 @@
+import sys
+sys.path.insert(1, '../')
+
+
+from utils import login
+from search import search
+
+
+def download_search(output_dir, dataset, download_code=None, **kwargs):
+    '''
+    Use EarthExplorer API to search and download scenes as tar files.
+    INPUTS: 
+        output_dir : str : output directory for downloaded data
+        dataset : str : name to identify dataset
+    OPTIONAL INPUTS:
+        download_code : str : download code to identify product; 
+            key 'downloadCode' in download_options() response
+        latitude : float : decimal degree coordinate in EPSG:4326
+            projection
+        longitude : float : decimal degree coordinate in EPSG:4326
+            projection
+        bbox : tuple : (xmin, ymin, xmax, ymax) of the bounding box
+        months : list of int : limit results to specific months (1-12)
+        start_date : str : YYYY-MM-DD
+        end_date : str : YYYY-MM-DD; defaults to start_date if
+            not given
+        include_unknown_cloud_cover : bool : defaults to False
+        min_cloud_cover : int : min cloud cover percentage (0-100);
+            defaults to 0
+        max_cloud_cover : int : max cloud cover percentage (0-100);
+            defaults to 100
+        additional_criteria : list : currently not supported
+        max_results : int : max number of results displayed;
+            defaults to 20
+    RETURNS: 
+        downloads search results as tar files to output directory
+    '''
+    api = login()
+    
+    # search all scenes
+    scenes = api.search(dataset, **kwargs)
+    print(f'{len(scenes)} scenes found')
+    
+    # make output directory (if doesn't yet exist)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for i, scene in enumerate(scenes, start=1):
+        print(f'Downloading scene {i} of {len(scenes)}')
+
+        # get scene identifier
+        entity_id = scene['entityId']
+        # use scene identifier as filename 
+        filename = os.path.join(output_dir, entity_id)
+        
+        # get download code if unknown
+        if download_code == None:
+            download_code, _ = api.download_options(dataset, entity_id)
+
+        # get download information
+        response = api.download(dataset, download_code, entity_id)
+        url = response[0]['url']
+        
+        # download dataset
+        urllib.request.urlretrieve(url, filename)
+
+    # logout of EROS account
+    api.logout()
+
+
+
+
+

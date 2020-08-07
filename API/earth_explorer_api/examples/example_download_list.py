@@ -12,7 +12,7 @@ from use_api import download_list
 output_dir = '/home/mad/DSWE_EaD/test_data/list_scenes'
 
 # path for list of scene IDs (csv format)
-csv_path = '/home/mad/DSWE_EaD/test_data/id_list.csv'
+csv_path = '/home/mad/DSWE_EaD/test_data/id_list_backup.csv'
 
 
 # download all datasets in the list
