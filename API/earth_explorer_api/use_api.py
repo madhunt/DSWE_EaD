@@ -10,8 +10,6 @@ import urllib.request
 import tarfile
 import csv
 import re
-import multiprocessing
-import queue
 
 def login():
     '''
@@ -22,8 +20,7 @@ def login():
     # get login information
     username = os.environ.get('EROS_USERNAME','')
     if username == '':
-        username = getpass.getpass(prompt='EROS Username:')
-        print(f'EROS Username: {username}')
+        username = input('EROS Username:')
 
     password = os.environ.get('EROS_PASSWORD', '')
     if password == '':
@@ -333,79 +330,3 @@ def untar(output_dir):
             tar_file.close()
             os.remove(full_path)
 
-
-def download_list_multithread(output_dir, dataset, csv_path, num_download_threads=None):
-    '''
-    Download scenes from a given list of scene IDs.
-    INPUTS:
-        output_dir: str : path to directory for downloaded data
-        dataset : str : name to identify dataset
-        product : str or list of str : string (or list the 
-            same length as scene_ids) to identify the 
-            product(s); called 'downloadCode' in
-            download_options response
-        scene_ids_path : str : path to list of scene ids 
-            (csv file)
-    RETURNS:
-        tar files downloaded in output_dir
-    '''
-    api = login()
-
-    print(api.key)
-
-    scene_ids, product_ids = csv_to_ID_list(csv_path)
-
-    process_queue = multiprocessing.Queue()
-
-    for i, scene in enumerate(scene_ids):
-        process_queue.put((i,scene))
-
-    def process_func(job_queue, print_lock, thread_id):
-        print("Starting thread {}".format(thread_id))
-        try:
-            while True:
-                (i, scene) = job_queue.get()
-                with print_lock:
-                    print(f'Downloading scene {i+1} of {len(scene_ids)}')
-                
-                product = product_ids[i]
-    
-                # create output filename
-                filename = os.path.join(output_dir, scene)
-    
-                # get download information
-                response = api.download(dataset, product, scene)
-   
-                url = response[0]['url']
-                
-                # download dataset
-                urllib.request.urlretrieve(url, filename)
-    
-        except queue.Empty:
-            # Finished all download jobs
-            with print_lock:
-                print("download thread {} finished".format(thread_id))
-            return
-        #except Exception as e:
-        #    with print_lock:
-        #        print("Exception was raised: {}".format(e))
-
-    print_lock = multiprocessing.Lock()
-
-    if num_download_threads == None:
-        num_download_threads = 1
-
-    # Setup threads
-    download_threads = [multiprocessing.Process(target=process_func, args=(process_queue,print_lock, i))  for i in range(num_download_threads)]
-
-    # Start the downloading threads
-    list(map( lambda process: process.start(), download_threads))
-
-    # Wait for all downloads to finish
-    list(map( lambda process: process.join(), download_threads))
-
-
-    # logout of EROS account
-    api.logout()
-    
-    return
