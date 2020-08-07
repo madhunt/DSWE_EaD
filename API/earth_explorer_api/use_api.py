@@ -184,19 +184,21 @@ def download_list(output_dir, csv_path, dataset=None, scene_ids=True):
     print('Converting CSV to list')
     if scene_ids == True:
         # csv contains scene IDs
-        scene_ids = csv_to_id_list(csv_path, 'scene')
+        scene_ids = csv_to_list(csv_path, 'scene')
 
         if dataset == None:
             # need to assign Landsat datasets
             datasets = []
+            scene_ids_real = []
             for i, scene_id in enumerate(scene_ids):
-                print(f'Finding dataset {i+1} of {len(scene_ids)}')
                 # find dataset
                 dataset = landsat_dataset(scene_id)
                 if dataset == '':
                     # CSV did not contain an ID
                     continue
                 datasets.append(dataset)
+                scene_ids_real.append(scene_id)
+            scene_ids = scene_ids_real
 
     elif scene_ids == False:
         # csv contains product IDs
@@ -242,6 +244,7 @@ def download_list(output_dir, csv_path, dataset=None, scene_ids=True):
             download_code, _ = api.download_options(dataset, entity_id)
         except Exception:
             print('no download code :(')
+            print(download_code)
             continue
 
         # get download information
@@ -278,6 +281,57 @@ def landsat_dataset(data_id):
     else:
         return ''
     return dataset
+
+
+def csv_to_list(csv_path, header_str):
+    '''
+    Convert csv file column to list.
+    INPUTS: 
+        csv_path : str : path to csv document
+        header_str : str : string to search for in column headers
+    RETURNS:
+        col_list : list : list of data in specified column
+    '''
+    col_list = []
+
+    with open(csv_path, newline='') as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            for cols in row.items():
+                header = cols[0]
+                col_list_search = re.compile(f'{header_str}[ _]id',
+                                                flags=re.IGNORECASE)
+
+                if col_list_search.search(header):
+                    col_list.append(cols[1])
+    if col_list == []:
+        raise Exception(f'No column called {header_str} in CSV')
+
+    return col_list 
+
+
+def untar(output_dir):
+    '''
+    Untars downloaded data and deletes tar files, leaving an
+    untar-ed folder of the same name.
+    INPUTS:
+        output_dir : str : path to directory with tar files
+    RETURNS:
+        untar-ed data in same directory
+    '''
+    for (dirpath, dirnames, filenames) in os.walk(output_dir):
+        for filename in filenames:
+            # get path to tar files
+            full_path = os.path.join(dirpath, filename)
+            
+            # open and extract data
+            tar_file = tarfile.open(full_path)
+            tar_file.extractall(f'{full_path}_extracted')
+            
+            # close and delete tar file
+            tar_file.close()
+            os.remove(full_path)
 
 
 def download_list_multithread(output_dir, dataset, csv_path, num_download_threads=None):
@@ -355,54 +409,3 @@ def download_list_multithread(output_dir, dataset, csv_path, num_download_thread
     api.logout()
     
     return
-
-
-def csv_to_list(csv_path, header_str):
-    '''
-    Convert csv file column to list.
-    INPUTS: 
-        csv_path : str : path to csv document
-        header_str : str : string to search for in column headers
-    RETURNS:
-        col_list : list : list of data in specified column
-    '''
-    col_list = []
-
-    with open(csv_path, newline='') as f:
-        reader = csv.DictReader(f)
-
-        for row in reader:
-            for cols in row.items():
-                header = cols[0]
-                col_list_search = re.compile(f'{header_str}[ _]id',
-                                                flags=re.IGNORECASE)
-
-                if col_list_search.search(header):
-                    col_list.append(cols[1])
-    if col_list == []:
-        raise Exception(f'No column called {header_str} in CSV')
-
-    return col_list 
-
-
-def untar(output_dir):
-    '''
-    Untars downloaded data and deletes tar files, leaving an
-    untar-ed folder of the same name.
-    INPUTS:
-        output_dir : str : path to directory with tar files
-    RETURNS:
-        untar-ed data in same directory
-    '''
-    for (dirpath, dirnames, filenames) in os.walk(output_dir):
-        for filename in filenames:
-            # get path to tar files
-            full_path = os.path.join(dirpath, filename)
-            
-            # open and extract data
-            tar_file = tarfile.open(full_path)
-            tar_file.extractall(f'{full_path}_extracted')
-            
-            # close and delete tar file
-            tar_file.close()
-            os.remove(full_path)
