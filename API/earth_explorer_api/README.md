@@ -1,4 +1,4 @@
-# Using the EarthExplorer API
+# EarthExplorer API
 
 This code is used to interface with the [EarthExplorer API](https://earthexplorer.usgs.gov/) to download and search datasets.
 
@@ -6,12 +6,14 @@ Usage of this code is shown through examples in the `examples` directory. You sh
 
 Note: you should have an EROS account in order to use this API. You can create one [here](https://ers.cr.usgs.gov/register).
 
+## Using the API
+See scripts in use\_api to download or search for datasets.
+
+
 ## Code explanation
 - `earthExplorerAPI.py`: contains a class for working with the API. Functions in this class were created base on those in the documentation (cited below). Large parts of this code were generalized from the [landsatxplore Python package](https://github.com/yannforget/landsatxplore), which uses the EarthExplorer API for landsat data.
 
-- `datamodels.py`: contains a few data models referenced in the EarthExplorer documentation, which can be found [here](https://earthexplorer.usgs.gov/inventory/documentation/datamodel) (EROS account needed to view)
-
-- `use_api.py`: this contains functions to use the API class and download or search datasets
+- `utils.py`: contains a few data models referenced in the EarthExplorer documentation, which can be found [here](https://earthexplorer.usgs.gov/inventory/documentation/datamodel) (EROS account needed to view)
 
 
 ## EarthExplorer API Documentation

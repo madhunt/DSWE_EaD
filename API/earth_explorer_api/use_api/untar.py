@@ -1,18 +1,19 @@
-import sys
-sys.path.insert(1, '../')
-
-import tarfile
+'''
+Untars downloaded data into folders of the same name.
+'''
+import argparse
 import os
+import tarfile
 
+from login import login
 
-from utils import login
-
-def untar(output_dir):
+def main(output_dir, delete_tars):
     '''
-    Untars downloaded data and deletes tar files, leaving an
-    untar-ed folder of the same name.
+    Untars downloaded data into folders of the same name.
     INPUTS:
         output_dir : str : path to directory with tar files
+    OPTIONAL INPUTS:
+        delete_tars : bool : if True, delete tar files once data is downloaded
     RETURNS:
         untar-ed data in same directory
     '''
@@ -27,6 +28,18 @@ def untar(output_dir):
             
             # close and delete tar file
             tar_file.close()
-            os.remove(full_path)
+            if delete_tars:
+                os.remove(full_path)
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Untars downloaded data into folders of the same name.')
+    parser.add_argument('output_dir',
+            metavar='OUTPUT_DIR', type=str,
+            help='path to directory with downloaded data')
+    parser.add_argument('delete_tars',
+            choices=[True,False], type=bool,
+            default=True,
+            help='if True, delete tar files once data is extracted')
 
+    args = parser.parse_args()
+    main(**vars(args))

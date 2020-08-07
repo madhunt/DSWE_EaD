@@ -12,6 +12,9 @@ Use the EarthExplorer API in the command line with these files.
         `python3 download_list.py --scene_ids True --landsat True '/path/to/output' '/path/to/mycsv.CSV'`
 
 
+- `untar.py` : Untars downloaded data into folders of the same name.
+    `usage: untar.py [-h] OUTPUT_DIR {True,False}`
 
-
+    Example usage: To untar all data in /path/to/data, and delete tar files once data is extracted, the following command would be run:
+        `python3 untar.py '/path/to/data' True`
 

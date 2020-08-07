@@ -5,11 +5,9 @@ import argparse
 import csv
 import os
 import re
-import sys
 import urllib.request
 
-sys.path.insert(1, '../')
-from utils import login
+from  login import login
 
 def main(output_dir, csv_path, scene_ids=True, 
             dataset=False, landsat=False):
