@@ -1,10 +1,9 @@
 '''
-
+Login to the EarthExplorer API using EROS account.
 '''
-import sys
-import os
 import getpass
-
+import os
+import sys
 sys.path.insert(1, '../')
 import earthExplorerAPI as eeapi
 
@@ -26,11 +25,3 @@ def login():
     # login to EROS account
     api = eeapi.API(username, password)
     return api
-
-
-
-
-
-
-
-

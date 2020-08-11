@@ -6,8 +6,8 @@ Usage of this code is shown through examples in the `examples` directory. You sh
 
 Note: you should have an EROS account in order to use this API. You can create one [here](https://ers.cr.usgs.gov/register).
 
-## Using the API
-See scripts in use\_api to download or search for datasets.
+## Using the API: Applications
+See scripts in applications to download or search for datasets.
 
 
 ## Code explanation

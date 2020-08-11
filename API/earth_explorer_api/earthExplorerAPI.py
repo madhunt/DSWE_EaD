@@ -4,11 +4,9 @@ Large parts of this code are based on:
     https://github.com/yannforget/landsatxplore
     MIT License
 '''
-import requests
 import json
-
+import requests
 from utils import spatial_filter, temporal_filter
-
 
 def json_request_format(**kwargs):
     return {'jsonRequest': json.dumps(kwargs)}
@@ -235,8 +233,3 @@ class API(object):
         download_options = response['downloadOptions'][0]
         download_code = download_options['downloadCode']
         return download_code, response
-
-
-
-
-

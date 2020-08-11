@@ -1,8 +1,6 @@
 '''
+Datamodels for the EarthExplorer API.
 '''
-
-
-
 
 def coordinate(latitude, longitude):
     '''
@@ -43,5 +41,3 @@ def temporal_filter(start_date, end_date=None):
                         'endDate': end_date}
     
     return temporal_filter
-
-

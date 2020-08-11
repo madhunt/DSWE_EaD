@@ -6,8 +6,7 @@ import csv
 import os
 import re
 import urllib.request
-
-from  login import login
+from login import login
 
 def main(output_dir, csv_path, scene_ids=True, 
             dataset=False, landsat=False):
@@ -206,9 +205,7 @@ def landsat_dataset(data_id):
     return dataset
 
 
-
 if __name__ == '__main__':
-    # get command line arguments
     parser = argparse.ArgumentParser(description='Download scenes from a given CSV list of scene IDs or product IDs.')
 
     parser.add_argument('output_dir',
@@ -235,6 +232,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.landsat and args.dataset:
-        parser.error('either specify if --landsat or the --dataset, not both')
+        parser.error('Either landsat or dataset can be specified, not both')
 
     main(**vars(args))

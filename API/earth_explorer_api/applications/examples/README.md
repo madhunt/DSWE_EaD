@@ -1,6 +1,5 @@
-# Example usage of EarthExplorer API
-
-Example scripts are given for how to use the EarthExplorer API code, using all the functions in `use_api/py`
+# Using applications in scripts
+While all applications have command line functionality, it is sometimes desired to call an application in a script. These scripts give examples of how to do so.
 
 - `example_download_list.py` : shows how to download data from a user-provided list of scene IDs (in csv format)
 
