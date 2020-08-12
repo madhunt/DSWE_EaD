@@ -4,7 +4,7 @@ This code is used to interface with the [EarthExplorer API](https://earthexplore
 
 Usage of this code is shown through examples in the `examples` directory. You should only need to modify these examples to download or search datasets.
 
-Note: you should have an EROS account in order to use this API. You can create one [here](https://ers.cr.usgs.gov/register).
+Note: you should have an EROS account in order to use this API. You can create one [here](https://ers.cr.usgs.gov/register). You should also request machine access to download data [here](https://ers.cr.usgs.gov/profile/access).
 
 ## Using the API: Applications
 See scripts in applications to download or search for datasets.

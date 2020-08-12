@@ -17,19 +17,27 @@ def main(output_dir, delete_tars):
     RETURNS:
         untar-ed data in same directory
     '''
-    for (dirpath, dirnames, filenames) in os.walk(output_dir):
-        for filename in filenames:
-            # get path to tar files
-            full_path = os.path.join(dirpath, filename)
-            
-            # open and extract data
-            tar_file = tarfile.open(full_path)
-            tar_file.extractall(f'{full_path}_extracted')
-            
-            # close and delete tar file
-            tar_file.close()
-            if delete_tars:
-                os.remove(full_path)
+    filenames = []
+    # list everything in the directory
+    entries = os.listdir(output_dir)
+
+    # get a list of only tar files in the directory
+    for entry in entries:
+        full_path = os.path.join(output_dir, entry)
+        if os.path.isfile(full_path) and tarfile.is_tarfile(full_path):
+            filenames.append(full_path)
+
+    for i, filename in enumerate(filenames):
+        print(f'Extracting file {i+1} of {len(filenames)}')
+        # open and extract data
+        tar_file = tarfile.open(filename)
+        tar_file.extractall(f'{filename}_extracted')
+        
+        # close and delete tar file
+        tar_file.close()
+        if delete_tars:
+            os.remove(filename)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Untars downloaded data into folders of the same name.')

@@ -9,7 +9,7 @@ import os
 
 from utils import *
 
-def main(main_dir, percent):
+def main(main_dir, percent_good):
     '''
     Takes a directory of DSWE data and sorts files into
     good or bad folders, depending if the percentage of 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('main_dir',
                 metavar='DIRECTORY_PATH', type=str,
                 help='main directory where DSWE data is located')
-    parser.add_argument('percent',
+    parser.add_argument('percent_good',
                 metavar='PERCENT', type=float,
                 help='desired percentage for valid data in a given file (float, 0-100)')
 
