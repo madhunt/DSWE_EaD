@@ -61,6 +61,31 @@ def make_output_dir(main_dir, time_period):
     return prop_dir
 
 
+def get_corner(file):
+    '''
+    Get coordinates of top left corner of raster.
+    INPUTS:
+        file : str : filename of interest
+    RETURNS:
+        top_left : tuple : coordinates of corner (x_min, y_max)
+            and filename of interest
+    '''
+    raster = gdal.Open(os.path.abspath(file))
+    geo_transform = raster.GetGeoTransform()
+    
+    x_size = raster.RasterXSize
+    y_size = raster.RasterYSize
+    x_res = geo_transform[1]
+    y_res = geo_transform[5]
+
+    x_min = geo_transform[0]
+    y_max = geo_transform[3]
+
+    top_left = (x_min, y_max, file)
+
+    return top_left
+
+
 def find_max_extent(file, extent_0):
     '''
     Determine the maximum extent of all files;
@@ -232,6 +257,13 @@ def create_output_file(data, data_str, prop_dir, time_str, geo_transform, projec
     # create output filename
     filename = time_str + '_' + data_str + '_proportion.tif'
     file_path = os.path.join(prop_dir, filename)
+
+    i = 1
+    while os.path.isfile(file_path):
+        # file already exists
+        filename = time_str + '_' + data_str + f'_proportion({i})' + '.tif'
+        file_path = os.path.join(prop_dir, filename)
+        i += 1
 
     shape = data.shape
 
