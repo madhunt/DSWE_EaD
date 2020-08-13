@@ -191,14 +191,20 @@ def landsat_dataset(data_id):
         dataset : str : corresponding Landsat dataset string
     '''
     info = data_id[0:4]
-    if ('LT05' in info) or ('LT5' in info):
-        # Landsat 4-5 thematic mapper collection 1 level 1
+    
+    MSS_choices = ['LM01', 'LM02', 'LM03', 'LM04', 'LM05',
+                    'LM1', 'LM2', 'LM3', 'LM4', 'LM5']
+    TM_choices = ['LT04', 'LT05', 'LT4', 'LT5']
+    ETM_choices = ['LE07', 'LE7']
+    L8_choices = ['LC08', 'LC8']
+
+    if info in MSS_choices:
+        dataset = 'LANDSAT_MSS_C1'
+    elif info in TM_choices:
         dataset = 'LANDSAT_TM_C1'
-    elif('LE07' in info) or ('LE7' in info):
-        # Landsat 7 ETM plus collection 1
+    elif info in ETM_choices:
         dataset = 'LANDSAT_ETM_C1'
-    elif ('LC08' in info) or ('LC8' in info):
-        # Landsat 8 operational land images plus thermal infrared
+    elif info in L8_choices:
         dataset = 'LANDSAT_8_C1'
     else:
         return ''
