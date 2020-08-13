@@ -8,10 +8,12 @@ import time_periods as tp
 
 import gdal
 import osr
-
+import itertools
+import operator
 
 main_dir = '/home/mad/DSWE_EaD/test_data/DRB_test/data/good_data'
 dswe_layer = 'INWM'
+time_period = 'year'
 
 
 
@@ -23,11 +25,15 @@ all_files, all_dates = utils.get_files(main_dir, dswe_layer)
 num_files = len(all_files)
 print(f'Processing {num_files} total scenes from {min(all_dates)} to {max(all_dates)}')
 
+# make output directory
+if time_period == 'multiyear':
+    time_period = time_period + '_' + str(multiyear)
+prop_dir = utils.make_output_dir(main_dir, time_period)
 
 # get corners of each file
 
 all_top_left = []
-all_bot_right = []
+#all_bot_right = []
 
 for file in all_files:
     
@@ -42,109 +48,65 @@ for file in all_files:
 
         x_min = geo_transform[0]
         y_max = geo_transform[3]
-        x_max = x_min + x_res * x_size
-        y_min = y_max + y_res * y_size
+        #x_max = x_min + x_res * x_size
+        #y_min = y_max + y_res * y_size
 
-        top_left = (x_min, y_max)
-        bot_right = (x_max, y_min)
+        top_left = (x_min, y_max, file)
+        #bot_right = (x_max, y_min, file)
 
-        return top_left, bot_right
+        return top_left#, bot_right
 
-    top_left, bot_right = get_corners(file)
+    top_left = get_corners(file)
 
     all_top_left.append(top_left)
-    all_bot_right.append(bot_right)
+    #all_bot_right.append(bot_right)
 
 # now we have lists of all top left and bottom right corners
 
-# for each unique coordinates, we need to process the files
 
-for top_left in uniq_top_left:
+# sort top left from small to large x val
+all_top_left.sort(key=lambda t:t[0])
 
-    current_top_left = top_left
+for key, group in itertools.groupby(all_top_left, operator.itemgetter(1)):
+    group = list(group)
+    group_files = [i[2] for i in group]
+    group_dates = []
 
-    for top_left in all_top_left:
-        if top_left == current_top_left:
-            # process here
+    # get group dates
+    for file in group_files:
+        _, filename = os.path.split(file)
+        file_date = utils.get_file_date(filename)
+        group_dates.append(file_date)
+
+
+
+    # initialize extent to be overwritten
+    extent_0 = [1e12, -1e12, -1e12, 1e12]
+
+    # loop through all files to calculate max extent
+    #XXX is this the correct way of calculating this??
+    for file in group_files:
+        extent_0 = utils.find_max_extent(file, extent_0)
+        print(extent_0)
+    max_extent = extent_0
+
+    # now we need to process each group with proportions code
     
 
+    if time_period == 'year':
+        tp.process_by_year(group_files, group_dates, prop_dir, max_extent)
+    elif time_period == 'month':
+        tp.process_by_month(group_files, group_dates, prop_dir, max_extent)
+    elif time_period == 'month_across_years':
+        tp.process_by_month_across_years(group_files, group_dates, prop_dir, max_extent)
+    elif time_period == 'season':
+        tp.process_by_season(group_files, group_dates, prop_dir, max_extent)
+    elif 'multiyear' in time_period:
+        tp.process_by_multiyear(group_files, group_dates, prop_dir, max_extent, multiyear)
 
+    # make sure you aren't writing over files that exist!!!!
 
+    # NOW have to combine final results
 
-
-
-# get extent (lat/long) of each file
-
-# get coordinates of 4 corners and reproject to lat/long
-
-
-all_extents = []
-all_latlons = []
-
-all_lat = []
-all_lon = []
-
-all_xmin = []
-all_ymax = []
-
-for file in all_files:
-    raster = gdal.Open(os.path.abspath(file))
-    geo_transform = raster.GetGeoTransform()
-
-    x_min = geo_transform[0]
-    y_max = geo_transform[3]
-    x_max = x_min + geo_transform[1] * raster.RasterXSize
-    y_min = y_max + geo_transform[5] * raster.RasterYSize
-    
-
-    all_xmin.append(x_min)
-    all_ymax.append(y_max)
-
-    all_extents.append([x_min, y_min, x_max, y_max])
-
-    
-    print(geo_transform[1])
-    print(geo_transform[5])
-
-    # now reporject coordinates
-    src_srs = osr.SpatialReference()
-    src_srs.ImportFromWkt(raster.GetProjection())
-    tgt_srs = src_srs.CloneGeogCS()
-
-    transform = osr.CoordinateTransformation(src_srs, tgt_srs)
-    lat_min, lon_min, _ = transform.TransformPoint(x_min, y_min)
-    lat_max, lon_max, _ = transform.TransformPoint(x_max, y_max)
-    
-    lower_left = (lon_min, lat_min)
-    upper_right = (lon_max, lat_max)
-    
-    #print(lon_max-lon_min)
-    #print(lat_max-lat_min)
-
-    #all_latlons.append([lower_left, upper_right])
-    all_lat.append(lat_min)
-    all_lat.append(lat_max)
-    all_lon.append(lon_min)
-    all_lon.append(lon_max)
-
-
-uniq_lat = (list(set(all_lat)))
-uniq_lat.sort()
-uniq_lon = (list(set(all_lon)))
-uniq_lon.sort()
-
-#print(uniq_lat)
-#print(uniq_lon)
-
-#for i,val in enumerate(uniq_lat):
-#    diff = uniq_lat[i+1] - val
-#    print(diff)
-
-
-
-uniq_x = (list(set(all_xmin)))
-uniq_y = list(set(all_ymax))
-print(uniq_x)
-print(uniq_y)
 
 
