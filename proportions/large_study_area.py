@@ -42,27 +42,26 @@ def main(main_dir, dswe_layer, time_period, multiyear):
 
 
     # sort top left from small to large x val
-    key_func = lambda t: t[0]
+    key_func = lambda t: (t[0], t[1])
     all_top_left.sort(key=key_func)
-    
-    total_len = sum(1 for key,_ in itertools.groupby(filenames, key=key_func))
+
+    total_len = sum(1 for key,_ in itertools.groupby(all_top_left, operator.itemgetter(1)))
     i = 1
 
     for key, g in itertools.groupby(all_top_left, operator.itemgetter(1)):
-        print(f'Processing group {i} of {total_len}}')
+        print(f'Processing group {i} of {total_len}')
         i += 1
 
         group = list(g)
         group_files = [i[2] for i in group]
         group_dates = []
 
+
         # get group dates
         for file in group_files:
             _, filename = os.path.split(file)
             file_date = utils.get_file_date(filename)
             group_dates.append(file_date)
-
-
 
         # initialize extent to be overwritten
         extent_0 = [1e12, -1e12, -1e12, 1e12]
@@ -74,8 +73,6 @@ def main(main_dir, dswe_layer, time_period, multiyear):
         max_extent = extent_0
 
         # now we need to process each group with proportions code
-        
-
         if time_period == 'year':
             tp.process_by_year(group_files, group_dates, prop_dir, max_extent)
         elif time_period == 'month':
@@ -92,7 +89,7 @@ def main(main_dir, dswe_layer, time_period, multiyear):
     # NOW have to combine final results
 
     # all files with same time_str and date_str need to be combined
-
+    
     # list all files in prop_dir
     os.chdir(prop_dir)
     filenames = []
