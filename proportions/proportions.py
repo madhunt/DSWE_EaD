@@ -6,11 +6,18 @@ import os
 import utils
 import time_periods as tp
 
-def main(main_dir, dswe_layer, time_period, multiyear):
+def main(main_dir, dswe_layer, time_period, multiyear=None):
     '''
-    Main code to calculate proportions.
+    Calculate proportions of pixels inundated with open or 
+    partial surface water over time.
     INPUTS:
-        argv : list : options and arguments from command line
+        main_dir : str : main directory where DSWE data is located
+        dswe_layer : str : DSWE layer to be used in calculations ;
+            INWM or INTR
+        time_period : str : time period to process files by;
+            year, month, month_across_years, season, multiyear 
+        multiyear : int : integer number of years to process files by;
+            only required if timeperiod=multiyear
     RETURNS:
         processes and saves data
     '''
@@ -48,12 +55,10 @@ def main(main_dir, dswe_layer, time_period, multiyear):
     elif 'multiyear' in time_period:
         tp.process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear)
 
-
     print('Processing done!')
 
 
 if __name__ == '__main__':
-    # get command line arguments
     parser = argparse.ArgumentParser(description='Calculate proportions of pixels inundated with open or partial surface water over time.')
 
     parser.add_argument('main_dir', 

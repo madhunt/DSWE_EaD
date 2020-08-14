@@ -93,7 +93,8 @@ def process_by_year(all_files, all_dates, prop_dir, max_extent):
         # process files in current year of interest
         time_str = str(current_time)
         process_files(current_files, prop_dir, max_extent, time_str)
-        print(f'Proportions completed for {time_str}')
+        if current_files != []:
+            print(f'Proportions completed for {time_str}')
 
 
 def process_by_month(all_files, all_dates, prop_dir, max_extent):
@@ -124,7 +125,8 @@ def process_by_month(all_files, all_dates, prop_dir, max_extent):
         # process files in current month of interest
         time_str = current_time.strftime("%b_%Y")
         process_files(current_files, prop_dir, max_extent, time_str)
-        print(f'Proportions completed for {time_str}')
+        if current_files != []:
+            print(f'Proportions completed for {time_str}')
 
 
 def process_by_month_across_years(all_files, all_dates, prop_dir, max_extent):
@@ -155,7 +157,8 @@ def process_by_month_across_years(all_files, all_dates, prop_dir, max_extent):
         month_str = datetime.date(1800, current_time, 1)
         time_str = month_str.strftime("%B")
         process_files(current_files, prop_dir, max_extent, time_str)
-        print(f'Proportions completed for {time_str}')
+        if current_files != []:
+            print(f'Proportions completed for {time_str}')
 
 
 def process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear):
@@ -177,7 +180,6 @@ def process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear):
     end_year = max(all_years)
 
     for current_time in range(start_year, end_year+multiyear, multiyear):
-            
         current_files = []
         # make a list of files in the current group of years
             # of interest
@@ -190,7 +192,8 @@ def process_by_multiyear(all_files, all_dates, prop_dir, max_extent, multiyear):
         # process files in current range of interest
         time_str = str(current_time) + '_' + str(current_time+multiyear-1)
         process_files(current_files, prop_dir, max_extent, time_str)
-        print(f'Proportions completed for {time_str}')
+        if current_files != []:
+            print(f'Proportions completed for {time_str}')
 
 
 def process_by_season(all_files, all_dates, prop_dir, max_extent):
@@ -229,4 +232,5 @@ def process_by_season(all_files, all_dates, prop_dir, max_extent):
         season = utils.find_season(current_time_range)
         time_str = season + '_' + str(current_time.year)
         process_files(current_files, prop_dir, max_extent, time_str)
-        print(f'Proportions completed for {time_str}')
+        if current_files != []:
+            print(f'Proportions completed for {time_str}')
