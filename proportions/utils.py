@@ -16,6 +16,10 @@ def get_file_date(filename):
     Gets date that file data was collected;
     uses convention of scene_id (entity_id) as filename.
     '''
+
+    #TODO add regex here with the filename to make sure its in the same format as I assumed!!!!
+
+
     file_year = int(filename[15:19])
     file_month = int(filename[19:21])
     file_day = int(filename[21:23])
