@@ -229,7 +229,4 @@ class API(object):
         if response == []:
             raise Exception('No response from EarthExplorer; no download options')
 
-        response = response[0]
-        download_options = response['downloadOptions'][0]
-        download_code = download_options['downloadCode']
-        return download_code, response
+        return response

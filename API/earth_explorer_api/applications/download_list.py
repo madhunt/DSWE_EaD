@@ -72,13 +72,23 @@ def main(output_dir, csv_path, scene_ids, dataset, landsat):
 
         # get download code
         try:
-            download_code, _ = api.download_options(dataset, entity_id)
+            download_opts = api.download_options(dataset, entity_id)
+            download_opts_list = download_opts[0]['downloadOptions']
+            if len(download_opts_list) > 1:
+                download_code = 'STANDARD'
+            else:
+                download_code = download_opts_list[0]['downloadCode']
+
         except Exception:
             print('No download code found for this scene.')
             continue
 
         # get download information
         response = api.download(dataset, download_code, entity_id)
+
+
+        print(response)
+
         if response == []:
             raise Exception('No dataset matches the inputs provided')
             continue
