@@ -99,9 +99,6 @@ def assign_datasets(scene_ids):
     scene_ids_real = []
     for i, scene_id in enumerate(scene_ids):
         # find dataset
-
-        print('scene id', scene_id)
-
         dataset = landsat_dataset(scene_id, scene_id=True)
         if dataset == '':
             # CSV did not contain an ID

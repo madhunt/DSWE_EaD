@@ -2,5 +2,8 @@
 
 This contains directories with python scripts to download data. 
 
-- `api_code` is the main directory, and contains code for using the EarthExplorer API, which allows you to download DSWE datasets
-- `other_code` contains scripts for downloading datasets from other sources
+- **earth\_explorer\_api**: contains code for using the EarthExplorer API, and has applications to download DSWE datasets
+
+- **filter\_downloaded\_data**: script to filter DSWE data that has been downloaded to your computer; will sort into 'good' and 'bad' categories depending if the percentage of usable (non-255) data in a scene is over a certain threshold
+
+- **other\_apis**: contains scripts for downloading datasets from other sources
