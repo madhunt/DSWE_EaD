@@ -8,8 +8,7 @@ import re
 import urllib.request
 from login import login
 
-def main(output_dir, csv_path, scene_ids=True, 
-            dataset=False, landsat=False):
+def main(output_dir, csv_path, scene_ids, dataset, landsat):
     '''
     Download scenes from a given list of scene IDs or product IDs.
     INPUTS:
@@ -36,7 +35,7 @@ def main(output_dir, csv_path, scene_ids=True,
             # assign datasets to scenes
             datasets, scene_ids = assign_datasets(scene_ids)
 
-        if dataset == False and landsat == False:
+        elif dataset == False and landsat == False:
             # datasets are unknown but NOT landsat
             raise Exception('Must supply dataset name; this option is currently not supported')
 
@@ -100,7 +99,10 @@ def assign_datasets(scene_ids):
     scene_ids_real = []
     for i, scene_id in enumerate(scene_ids):
         # find dataset
-        dataset = landsat_dataset(scene_id)
+
+        print('scene id', scene_id)
+
+        dataset = landsat_dataset(scene_id, scene_id=True)
         if dataset == '':
             # CSV did not contain an ID
             continue
@@ -119,7 +121,7 @@ def assign_datasets_and_scenes(product_ids):
     for i, product_id in enumerate(product_ids):
         print(f'Finding scene ID and dataset {i+1} of {len(product_ids)}')
         # find dataset
-        dataset = landsat_dataset(product_id)
+        dataset = landsat_dataset(product_id, scene_id=False)
         if dataset == '':
             # CSV did not contain an ID
             continue
@@ -183,15 +185,21 @@ def csv_to_list(csv_path, header_str):
     return col_list 
 
 
-def landsat_dataset(data_id):
+def landsat_dataset(data_id, scene_id=True):
     '''
     INPUTS:
         data_id : str : either scene or product ID
+        scene_id : bool : if True, the data_id is a scene ID;
+            if False, data_id is a product ID
     RETURNS:
         dataset : str : corresponding Landsat dataset string
     '''
-    info = data_id[0:4]
     
+    if scene_id == True:
+        info = data_id[0:3]
+    if scene_id == False:
+        info = data_id[0:4]
+
     MSS_choices = ['LM01', 'LM02', 'LM03', 'LM04', 'LM05',
                     'LM1', 'LM2', 'LM3', 'LM4', 'LM5']
     TM_choices = ['LT04', 'LT05', 'LT4', 'LT5']
@@ -236,8 +244,5 @@ if __name__ == '__main__':
             help='if True, IDs in CSV are all from Landsat datasets')
 
     args = parser.parse_args()
-
-    if args.landsat and args.dataset:
-        parser.error('Either landsat or dataset can be specified, not both')
 
     main(**vars(args))
