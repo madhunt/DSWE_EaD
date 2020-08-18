@@ -98,13 +98,13 @@ class API(object):
         # get request parameters
         params = {'publicOnly': public_only}
         if dataset:
-            params.update(datasetName=dataset)
+            params['datasetName'] = dataset
         if latitude and longitude:
-            params.update(spatialFilter=spatial_filter(latitude, longitude))
+            params['spatialFilter'] = spatial_filter(latitude, longitude)
         if bbox: 
-            params.update(spatialFilter=spatial_filter(*bbox))
+            params['spatialFilter'] = spatial_filter(*bbox)
         if start_date:
-            params.update(temporalFilter=temporal_filter(start_date, end_date))
+            params['temporalFilter'] = temporal_filter(start_date, end_date)
 
         results = self.request('datasets', **params)
         return results
@@ -140,15 +140,15 @@ class API(object):
                 'maxCloudCover': max_cloud_cover,
                 'maxResults': max_results}
         if latitude and longitude:
-            params.update(spatialFilter=spatial_filter(latitude, longitude))
+            params['spatialFilter'] = spatial_filter(latitude, longitude)
         if bbox: 
-            params.update(spatialFilter=spatial_filter(*bbox))
+            params['spatialFilter'] = spatial_filter(*bbox)
         if start_date:
-            params.update(temporalFilter=temporal_filter(start_date, end_date))
+            params['temporalFilter'] = temporal_filter(start_date, end_date)
         if months:
-            params.update(months=months)
+            params['months'] = months
         if additional_criteria:
-            params.update(additionalCriteria=search_filter(additional_criteria)) #TODO make search filter function
+            params['additionalCriteria'] = search_filter(additional_criteria) #TODO make search filter function
 
         response = self.request('search', **params)
         search_results = response['results'] 
