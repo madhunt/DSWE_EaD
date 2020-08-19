@@ -1,7 +1,15 @@
 #!/bin/bash
 
-mkdir recolored_images /
-for f in *;
-    do gdaldem color-relief $f col.txt ./recolored_images/$f -nearest_color_entry;
-    done
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+mkdir recolored_images
+for file in *; do
+    if [[ $file = *'nonwater'* ]]; then
+        gdaldem color-relief "$file" "$DIR"/col_nonwater.txt ./recolored_images/"$file";
+    elif [[ $file = *'open_sw'* ]]; then
+        gdaldem color-relief "$file" "$DIR"/col_open_sw.txt ./recolored_images/"$file";
+    elif [[ $file = *'partial_sw'* ]]; then
+        gdaldem color-relief "$file" "$DIR"/col_partial_sw.txt ./recolored_images/"$file";
+    fi
+
+done

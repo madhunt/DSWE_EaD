@@ -1,16 +1,11 @@
-# Recolor output images from proportions code
-Since the output images from `proportions.py` are scaled from 0 to 100 (with invalid pixels as 255), the image appears all black in most image viewers. The simple bash script in `recolor.sh` will recolor the output images using the color scheme in a file `col.txt` using gdaldem.
+# Recolor output images
+The simple bash script will recolor the output images from *proportions.py* or *proportions_mosaic.py* using gdaldem and the three provided color schemes.
 
-## To use
-Copy the colormap of your choice to `col.txt` in the output directory of the processed data, and run `recolor.sh` in that directory (make sure you make it executable). The script will make a new folder called 'recolored\_images', which will contain the recolored images.
+## Usage
+Run *recolor.sh* in the output directory of the processed data (make sure you make it executable on your computer). The script will create a new folder called *recolored\_images*, which will contain the images recolored according to the nonwater, open surface water, and partial surface water colormaps.
 
 ## Make a different color scheme
-Several color schemes are provided in other text files. Feel free to create your own color scheme in `col.txt`, by listing the pixel value followed by the color.
-
-Supported colors are: white, black, red, green, blue, yellow, magenta, cyan, aqua, grey/gray, orange, brown, purple/violet and indigo. RGB values for colors can be used as well.
+Example color schemes for nonwater, open surface water, and partial surface water images are provided. The list the pixel value followed by the RGB color values. In addition to RGB color values, supported colors are: white, black, red, green, blue, yellow, magenta, cyan, aqua, grey/gray, orange, brown, purple/violet and indigo.
 
 ## References
 - [gdaldem documentation](https://gdal.org/programs/gdaldem.html)
-
-
-
