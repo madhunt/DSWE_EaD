@@ -27,28 +27,30 @@ def main(hdf_file, tiff_output, output_dir):
     # get bands (subdatasets) from HDF data
     all_bands = hdf_data.GetSubDatasets()
 
-    # use OLI–HLS Band Equivalence table to assign each DSWE band
+    # assign each DSWE band
     dswe_bands = {}
     for band in all_bands:
         band_filename = band[0]
         if 'band01' or 'B01' in band_filename:
-            dswe_bands['coastal'] = gdal.Open(band_filename)
+            dswe_bands['coastal'] = band_filename
         if 'band02' or 'B02' in band_filename:
-            dswe_bands['blue'] = gdal.Open(band_filename)
+            dswe_bands['blue'] = band_filename
         if 'band03' or 'B03' in band_filename:
-            dswe_bands['green'] = gdal.Open(band_filename)
+            dswe_bands['green'] = band_filename
         if 'band04' or 'B04' in band_filename:
-            dswe_bands['red'] = gdal.Open(band_filename)
+            dswe_bands['red'] = band_filename
         if 'B08' in band_filename:
-            dswe_bands['nir10m'] = gdal.Open(band_filename)
+            dswe_bands['nir10m'] = band_filename
         if 'band05' or 'B8A' in band_filename:
-            dswe_bands['nir'] = gdal.Open(band_filename)
+            dswe_bands['nir'] = band_filename
         if 'band06' or 'B11' in band_filename:
-            dswe_bands['swir1'] = gdal.Open(band_filename)
+            dswe_bands['swir1'] = band_filename
         if 'band07' or 'B12' in band_filename:
-            dswe_bands['swir2'] = gdal.Open(band_filename)
+            dswe_bands['swir2'] = band_filename
+
 
     if tiff_output:
+        print('Creating output file')
         # create path to output file
         if output_dir == None:
             output_dir, _ = os.path.split(hdf_file)
@@ -62,13 +64,7 @@ def main(hdf_file, tiff_output, output_dir):
 
 
     else:
-        # currently returning a dict of gdal dataset shadows (pointers)
         return dswe_bands
-
-    # what type should the program return for each DSWE variable if the user does not want TIFF output?
-        # eg. an array, a gdal dataset, etc.?
-
-        # WHAT TYPE SHOULD THESE BE??
 
 
 def oli_or_msi(hdf_metadata):
@@ -97,7 +93,6 @@ def oli_or_msi(hdf_metadata):
         raise Exception('Dataset is neither OLI (landsat) nor MSI (sentinel).')
 
     return is_landsat, is_sentinel, x30
-
 
 
 def get_filename_info(hdf_metadata):
@@ -134,7 +129,8 @@ def create_output_file(dswe_bands, file_path):
 
     # read in data
     for i, key in enumerate(dswe_bands):
-        band = dswe_bands[key]
+        filename = dswe_bands[key]
+        band = gdal.Open(filename)
         geo_transform = band.GetGeoTransform()
         projection = band.GetProjection()
 
@@ -173,17 +169,15 @@ if __name__ == '__main__':
     parser.add_argument('hdf_file',
             metavar='HDF_FILE_PATH', type=str,
             help='path to HDF4 file')
-    parser.add_argument('tiff_output',
-            choices=[True, False], type=bool,
-            help='if True, the output will be written to a TIFF file; if False, the output will be returned as __')
+    parser.add_argument('--tiff_output',
+            dest='tiff_output',
+            action='store_true',
+            help='if flagged, the output will be written to a TIFF file')
     parser.add_argument('--output_dir', dest='output_dir',
             metavar='OUTPUT_DIRECTORY', type=str,
-            required=False, default = None,
+            default=None,
             help='specify an output directory for TIFF files, if desired (otherwise, TIFF files will be created in same directory as HDF file)')
 
     args = parser.parse_args()
-
-    if args.tiff_output == False and args.output_dir:
-        parser.error('No output directory is needed, since no output TIFF files will be created.')
-
+    
     main(**vars(args))
