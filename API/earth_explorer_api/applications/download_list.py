@@ -227,7 +227,7 @@ def landsat_dataset(data_id, scene_id=True):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Download scenes from a given CSV list of scene IDs or product IDs.')
+    parser = argparse.ArgumentParser(description='Download scenes from a given CSV list of scene IDs or product IDs (specify with --scene_ids or --product_ids).')
 
     parser.add_argument('output_dir',
             metavar='OUTPUT_DIR', type=str,
@@ -235,20 +235,24 @@ if __name__ == '__main__':
     parser.add_argument('csv_path',
             metavar='CSV_PATH', type=str,
             help='path to CSV containing scene or product IDs')
-    parser.add_argument('--scene_ids',
-            choices=[True,False], type=bool,
-            required=True,
-            help='if True, CSV contains scene IDs; if False, CSV contains product IDs')
     parser.add_argument('--dataset',
-            default=False,
-            choices=[True,False], type=bool,
-            dest='dataset', required=False,
-            help='if True, CSV contains a column with dataset names')
+            dest='dataset',
+            action='store_true',
+            help='if flagged, CSV contains a column with dataset names')
     parser.add_argument('--landsat',
-            default=False,
-            choices=[True,False], type=bool,
-            dest='landsat', required=False,
-            help='if True, IDs in CSV are all from Landsat datasets')
+            dest='landsat',
+            action='store_true',
+            help='if flagged, IDs in CSV are all from Landsat datasets')
+
+    id_type = parser.add_mutually_exclusive_group(required=True)
+    id_type.add_argument('--scene_ids',
+            dest='scene_ids',
+            action='store_true',
+            help='if flagged, CSV contains scene IDs')
+    id_type.add_argument('--product_ids',
+            dest='scene_ids',
+            action='store_false',
+            help='if flagged, CSV contains product IDs')
 
     args = parser.parse_args()
 

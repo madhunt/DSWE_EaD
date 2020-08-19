@@ -7,16 +7,15 @@ Future applications can be added here as needed.
 ## download\_list.py
 Download scenes from a given CSV list of scene IDs or product IDs.
 ```   
-usage: download_list.py [-h] --scene_ids {True,False} 
-                    [--dataset {True,False}]
-                    [--landsat {True,False}] 
-                    OUTPUT_DIR CSV_PATH
+usage: download_list.py [-h] [--dataset] [--landsat]
+                        (--scene_ids | --product_ids)
+                        OUTPUT_DIR CSV_PATH
 ```
 - *Example Usage*
 
     Download all data from /path/to/mycsv.csv, which contains a column of Landsat scene IDs. Save this data in /path/to/output. The following command would be run in your terminal to do this:
     ``` 
-    python3 download_list.py --scene_ids True --landsat True '/path/to/output' '/path/to/mycsv.csv'
+    python3 download_list.py --landsat --scene_ids '/path/to/output' '/path/to/mycsv.csv'
     ```
 
 ## download\_search.py
@@ -43,17 +42,16 @@ usage: download_search.py [-h] [--download_code DOWNLOAD_CODE]
 ## search\_datasets.py
 Search available datasets on EarthExplorer. By passing no parameters, all available datasets are returned.
 ```
-usage: search_datasets.py [-h] [--dataset DATASET_STR]
-                    [--public {True,False}]
-                    [--lat LATITUDE] [--long LONGITUDE] 
-                    [--bbox BBOX] 
-                    [--start START_DATE] [--end END_DATE]
+usage: search_datasets.py [-h] [--dataset DATASET] [--public]
+                          [--lat LATITUDE] [--long LONGITUDE]
+                          [--bbox BBOX] [--start START_DATE]
+                          [--end END_DATE]
 ```
 - *Example Usage*
 
     To search for all publically-available datasets that contain landsat data between 1970 and 1980, the following command would be run:
     ```
-    python3 search_datasets.py --dataset 'landsat' --public True --start '1970-01-01' --end '1981-01-01'
+    python3 search_datasets.py --dataset 'landsat' --public --start '1970-01-01' --end '1981-01-01'
     ```
     This should return and print to the screen information about three datasets: ORTHO_MSS_SCENE, MSS_FILM, and RBV_FILM.
 
@@ -89,5 +87,5 @@ usage: untar.py [-h] OUTPUT_DIR {True,False}
 
     To untar all data in /path/to/data, and delete tar files once data is extracted, the following command would be run:
     ```
-    python3 untar.py '/path/to/data' True
+    python3 untar.py '/path/to/data' --delete_tars
     ```

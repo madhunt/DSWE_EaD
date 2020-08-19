@@ -44,10 +44,10 @@ if __name__ == '__main__':
     parser.add_argument('output_dir',
             metavar='OUTPUT_DIR', type=str,
             help='path to directory with downloaded data')
-    parser.add_argument('delete_tars',
-            choices=[True,False], type=bool,
-            default=True,
-            help='if True, delete tar files once data is extracted')
+    parser.add_argument('--delete_tars',
+            dest='delete_tars',
+            action='store_true',
+            help='if flagged, delete tar files once data is extracted')
 
     args = parser.parse_args()
     main(**vars(args))

@@ -44,8 +44,9 @@ if __name__ == '__main__':
             type=str,
             help='used as a filter with implied wildcards at beginning and end of supplied value')
     parser.add_argument('--public',
-            type=bool, choices=[True,False], dest='public_only',
-            help='if True, filter out datasets not accessible to unauthenticated users; defaults to False')
+            dest='public_only',
+            action='store_true',
+            help='if flagged, filter out datasets not accessible to unauthenticated users')
     parser.add_argument('--lat',
             type=float, dest='latitude',
             help='decimal degree coordinate in EPSG:4326')
