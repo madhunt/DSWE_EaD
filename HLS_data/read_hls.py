@@ -6,22 +6,23 @@ import os
 import numpy as np
 import argparse
 
-def main(hdf_dir, tiff_output):
+
+def main(hdf_file, tiff_output, output_dir):
     '''
 
     INPUTS:
-        hdf_dir : str : path to HDF4 file
+        hdf_file : str : path to HDF4 file
         tiff_output : bool : if True, output results to TIFF files;
             if False, return DSWE bands as **_____**
     RETURNS:
     
     '''
     # open HDF file and get metadata
-    hdf_data = gdal.Open(os.path.abspath(hdf_dir))
+    hdf_data = gdal.Open(os.path.abspath(hdf_file))
     hdf_metadata = hdf_data.GetMetadata_Dict()
 
     # determine if data is OLI (landsat) or MSI (sentinel)
-    is_landsat, is_sentinel = oli_or_msi(hdf_metadata)
+    is_landsat, is_sentinel, x30 = oli_or_msi(hdf_metadata)
 
     # get bands (subdatasets) from HDF data
     all_bands = hdf_data.GetSubDatasets()
@@ -33,29 +34,30 @@ def main(hdf_dir, tiff_output):
         if 'band01' or 'B01' in band_filename:
             dswe_bands['coastal'] = gdal.Open(band_filename)
         if 'band02' or 'B02' in band_filename:
-            dswe_bands['blue'] = gdal.Open(band_filename))
+            dswe_bands['blue'] = gdal.Open(band_filename)
         if 'band03' or 'B03' in band_filename:
-            dswe_bands['green'] = gdal.Open(band_filename))
+            dswe_bands['green'] = gdal.Open(band_filename)
         if 'band04' or 'B04' in band_filename:
-            dswe_bands['red'] = gdal.Open(band_filename))
+            dswe_bands['red'] = gdal.Open(band_filename)
         if 'B08' in band_filename:
-            dswe_bands['nir10m'] = gdal.Open(band_filename))
+            dswe_bands['nir10m'] = gdal.Open(band_filename)
         if 'band05' or 'B8A' in band_filename:
-            dswe_bands['nir'] = gdal.Open(band_filename))
+            dswe_bands['nir'] = gdal.Open(band_filename)
         if 'band06' or 'B11' in band_filename:
-            dswe_bands['swir1'] = gdal.Open(band_filename))
+            dswe_bands['swir1'] = gdal.Open(band_filename)
         if 'band07' or 'B12' in band_filename:
-            dswe_bands['swir2'] = gdal.Open(band_filename))
+            dswe_bands['swir2'] = gdal.Open(band_filename)
 
     if tiff_output:
         # create path to output file
+        if output_dir == None:
+            output_dir, _ = os.path.split(hdf_file)
+
         dt_str, hls_tile = get_filename_info(hdf_metadata)
-        main_dir, _ = os.path.split(hdf_dir)
         filename = (dt_str + hls_tile + '_' + x30 + '_DSWEin.tiff')
-        file_path = os.path.join(main_dir, filename)
+        file_path = os.path.join(output_dir, filename)
 
         create_output_file(dswe_bands, file_path)
-
         return
 
 
@@ -94,7 +96,7 @@ def oli_or_msi(hdf_metadata):
     if not is_landsat and not is_sentinel:
         raise Exception('Dataset is neither OLI (landsat) nor MSI (sentinel).')
 
-    return is_landsat, is_sentinel
+    return is_landsat, is_sentinel, x30
 
 
 
@@ -120,7 +122,7 @@ def get_filename_info(hdf_metadata):
         hls_tile = tile_id[-13:-7]
     elif 'SENTINEL2_TILEID' in hdf_metadata:
         # this is for sure good and correct
-        hls_tile = hdf_metadata['SENTINEL2_TILEID']
+        hls_tile = 'T' + hdf_metadata['SENTINEL2_TILEID']
     else:
         raise Exception('Assumption that TILE_ID present for MSI or SENTINel2_TILEID present for OLI failed.')
 
@@ -165,14 +167,23 @@ def create_output_file(dswe_bands, file_path):
 
 
 
-#if __name__ = '__main__':
-    # get command line args
-#hdf_dir = '/home/mad/DSWE_EaD/test_data/hls_data/HLS.L30.T01UDT.2020008.v1.4.hdf'
-hdf_dir = '/home/mad/DSWE_EaD/test_data/hls_data/HLS.S30.T08UNG.2020001.v1.4.hdf'
-#hdf_dir = '/home/mad/DSWE_EaD/test_data/hls_data/HLS.S30.T32SMJ.2017004.v1.4.hdf'
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Read HLS (Harmonized Landsat Sentinel-2) data (in HDF4 format) to use as inputs to DSWE code.')
 
-tiff_output = True
+    parser.add_argument('hdf_file',
+            metavar='HDF_FILE_PATH', type=str,
+            help='path to HDF4 file')
+    parser.add_argument('tiff_output',
+            choices=[True, False], type=bool,
+            help='if True, the output will be written to a TIFF file; if False, the output will be returned as __')
+    parser.add_argument('--output_dir', dest='output_dir',
+            metavar='OUTPUT_DIRECTORY', type=str,
+            required=False, default = None,
+            help='specify an output directory for TIFF files, if desired (otherwise, TIFF files will be created in same directory as HDF file)')
 
+    args = parser.parse_args()
 
+    if args.tiff_output == False and args.output_dir:
+        parser.error('No output directory is needed, since no output TIFF files will be created.')
 
-main(hdf_dir, tiff_output)
+    main(**vars(args))
