@@ -4,6 +4,7 @@ Utility functions for proportions.py
 import datetime
 import getopt
 import os
+import re
 import sys
 import gdal
 import numpy as np
@@ -15,10 +16,12 @@ def get_file_date(filename):
     '''
     Gets date that file data was collected;
     uses convention of scene_id (entity_id) as filename.
+    Note: date was taken from filename in order to sort data
+        by date before rasters were opened 
+        (and metadata could be read)
     '''
-
-    #TODO add regex here with the filename to make sure its in the same format as I assumed!!!!
-
+    pattern = re.compile('L[C,E,T,M]\d{1,2}_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
+    assert pattern.match(filename), 'Filename does not match expected Entity ID format.'
 
     file_year = int(filename[15:19])
     file_month = int(filename[19:21])
