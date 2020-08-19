@@ -1,21 +1,24 @@
 '''
+Read HLS (Harmonized Landsat Sentinel-2) data (in HDF4 format)
+to use as inputs to DSWE code.
 '''
-
+import argparse
 import gdal
 import os
-import numpy as np
-import argparse
-
 
 def main(hdf_file, tiff_output, output_dir):
     '''
-
+    Read HLS (Harmonized Landsat Sentinel-2) data (in HDF4 format) 
+    to use as inputs to DSWE code.
     INPUTS:
         hdf_file : str : path to HDF4 file
-        tiff_output : bool : if True, output results to TIFF files;
-            if False, return DSWE bands as **_____**
+        tiff_output : bool : if True, output results to TIFF file;
+            if False, return dictionary of DSWE band filenames
+        output_dir : str : path to write ouput TIFF files to if not None
     RETURNS:
-    
+        output TIFF file OR
+        dswe_bands : dict : keys are DSWE band code names,
+            and values are full paths to band filenames
     '''
     # open HDF file and get metadata
     hdf_data = gdal.Open(os.path.abspath(hdf_file))
@@ -66,12 +69,12 @@ def main(hdf_file, tiff_output, output_dir):
     else:
         # use as input before line 212 of the existing DSWE code
         # the naming scheme in the DSWE code is as follows:
-        Blue = dswe_bands['blue']
-        Green = dswe_bands['green']
-        Red = dswe_bands['red']
-        NIR = dswe_bands['nir']
-        SWIR1 = dswe_bands['swir1']
-        SWIR2 = dswe_bands['swir2']
+        #Blue = dswe_bands['blue']
+        #Green = dswe_bands['green']
+        #Red = dswe_bands['red']
+        #NIR = dswe_bands['nir']
+        #SWIR1 = dswe_bands['swir1']
+        #SWIR2 = dswe_bands['swir2']
 
         # I am returning the dict of band filenames
         # to allow currently unused bands (coastal, nir10m)
@@ -131,7 +134,7 @@ def get_filename_info(hdf_metadata):
         # this is for sure good and correct
         hls_tile = 'T' + hdf_metadata['SENTINEL2_TILEID']
     else:
-        raise Exception('Assumption that TILE_ID present for MSI or SENTINel2_TILEID present for OLI failed.')
+        raise Exception('Assumption that TILE_ID present for MSI or SENTINEl2_TILEID present for OLI failed.')
 
     return dt_str, hls_tile
 
