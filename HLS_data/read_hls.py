@@ -64,6 +64,14 @@ def main(hdf_file, tiff_output, output_dir):
 
 
     else:
+        # use as input before line 212 of the existing DSWE code
+        # the naming scheme in the DSWE code is as follows:
+        Blue = dswe_bands['blue']
+        Green = dswe_bands['green']
+        Red = dswe_bands['red']
+        NIR = dswe_bands['nir']
+        SWIR1 = dswe_bands['swir1']
+        SWIR2 = dswe_bands['swir2']
         return dswe_bands
 
 
