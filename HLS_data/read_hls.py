@@ -72,6 +72,10 @@ def main(hdf_file, tiff_output, output_dir):
         NIR = dswe_bands['nir']
         SWIR1 = dswe_bands['swir1']
         SWIR2 = dswe_bands['swir2']
+
+        # I am returning the dict of band filenames
+        # to allow currently unused bands (coastal, nir10m)
+        # to be called and used in existing code
         return dswe_bands
 
 
