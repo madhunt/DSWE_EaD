@@ -51,7 +51,6 @@ def main(hdf_file, tiff_output, output_dir):
         if 'band07' or 'B12' in band_filename:
             dswe_bands['swir2'] = band_filename
 
-
     if tiff_output:
         print('Creating output file')
         # create path to output file
@@ -64,7 +63,6 @@ def main(hdf_file, tiff_output, output_dir):
 
         create_output_file(dswe_bands, file_path)
         return
-
 
     else:
         # use as input before line 212 of the existing DSWE code
