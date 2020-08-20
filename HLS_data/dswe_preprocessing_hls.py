@@ -1,113 +1,174 @@
-#################
-# unzip function --
-#     Unzip tar.gz file, put in a folder.
-# dem_slp_hillshade function --
-#     Read in the first image to get the extent
-#     clip the DEM to Landsat image
-#     get solar geometry from .xml file 
-#     calculate the % slope and hillshade
-# ??? needs to install gdal.Translate and gdal.DEMprocessing functions ?????
-#################
-# python DSWE_preprocessing.py --input_file=/disks/igskaecgus86241/disk2/DSWE/p026r029/tiff_zip/LC80260292014207-SC20160122142319.tar --output_dir=/disks/igskaecgus86241/disk2/DSWE/p026r029/tiff_zip/LC80260292014207-SC20160122142319/
-    
+'''
+
+''' 
 import os
-import time
 import numpy as np # just use .shape and get rid of this import
 import gdal
 import datetime
 import glob
 import sys
-import tarfile  # extract data from .tar achives
-import shutil   # file copy/move/delete operations
-import argparse # for command line aruguments
-import getopt 
+import tarfile
+import argparse
+
+
+import re
+import read_hls
+
 
 from lxml import etree
 
-########
-# unzip an archive of landsat bands
-########
-def unzip_landsat(in_file, out_dir):
-    print "Unzipping", in_file, "to", out_dir
 
-    if not os.path.exists(in_file):
-        print 'Could not find ' + in_file
-        return(False)
-
-    #if not os.path.exists(out_dir):
-    #    print 'Creating ' + out_dir
-    #    os.makedirs( os.path.dirname(out_dir) )
-
-    tar = tarfile.open(in_file, mode='r:gz')
-    tar_members = tar.getmembers()
-
-    tar.extractall(out_dir)
+def main(input_file, output_dir, us_dem, slope_in, targz):
+    '''
     
-#######
-# create dem, % slope and hillshade tiff files for later use
-#######
-def dem_slp_hillshade(gz_folder, dem, slp):
-    ## filenames for processed dem, slope and hillshade
-    dst_dem = gz_folder + "/" + "DEM.tif"
-    dst_slp = gz_folder + "/" + "perslp.tif"
-    dst_hshd = gz_folder + "/" + "hillshade.tif"
+    '''
+    # create output_dir if doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
 
-    ## read in the first tif to crop the dem
-    file_list = glob.glob1(gz_folder, "*.tif")
-    print file_list, gz_folder
 
-    first_file_ds = gdal.Open(gz_folder + "/" + file_list[0])
+    if targz: # input is landsat tar.gz file
+        # get list of bands
+        unpack_dir = untar(input_file, output_dir)
+        band_files = []
+        for dirpath, _, filenames in os.walk(unpack_dir):
+            for filename in filenames:
+                if '.tif' in filename:
+                    filepath = os.path.join(dirpath, filename)
+                    band_files.append(filepath)
+                if 'MTL' in filename:
+                    metadata_file = filename
 
-    ## grab image size and projection info
-    nCol = first_file_ds.RasterXSize
-    nRow = first_file_ds.RasterYSize + 1
+        # get metadata
+        azimuth, altitude = get_tar_metadata(metadata_file)
 
-    # coordinates are for top-left corners of pixels
-    geotrans = first_file_ds.GetGeoTransform()    
+
+    else: # input is HLS file
+        # get list of bands
+        dswe_bands = read_hls.main(input_file, tiff_output=False, output_dir=None)
+        band_files = list(dswe_bands.values())
+
+        # get metadata
+        band_filename = band_files[0]
+        match = re.search('\"(.+?)\"', band_filename)
+        hls_filename = match.group(1)
+
+        azimuth, altitude = get_hls_metadata(hls_filename)
+
+
+
+    #TODO plus, make 3 sep functions for dem, slp, and hillshade
+    create_dem_and_slope(output_dir, band_files, us_dem, slope_in)
     
-    # clip with geotrans from first Landsat band
-    minx = geotrans[0]
-    maxy = geotrans[3]
-    maxx = minx + geotrans[1] * nCol
-    miny = maxy + geotrans[5] * nRow
-    
-    # open the big DEM and percent slope
-    src_dem = gdal.Open(dem)
-    src_slp = gdal.Open(slp)
 
-    ##Clip our slope and hillshade mask to the image (have to do this for each image due to the variable extents of each image)
-    GeoClip= [minx, maxy, maxx, miny]
-    print GeoClip
-    print "clipping DEM..."
-    dem_clip = gdal.Translate(dst_dem, src_dem, projWin = GeoClip)
-    
-    print "calculating slope..."
-    slp_clip = gdal.Translate(dst_slp, src_slp, projWin = GeoClip)
-    #perslp = gdal.DEMProcessing(dst_slp, dem_clip, 'slope', slopeFormat = 'percent', format = 'GTiff')
+    dem_slp_hillshade(output_dir, band_files, dem, slp)
 
-    # close open datasets
-    src_dem = None
-    src_slp = None
-    dem_clip = None
-    slp_clip = None
+
+def untar(input_file, output_dir):
+    '''
+    Unpack tar.gz file of Landsat bands.
+    INPUTS:
+        input_file : str : path to tar.gz file
+        output_dir : str : path to directory to unpack files in
+    RETURNS:
+        tar.gz files unpacked in subdirectory of output_dir
+    '''
+    # make sure input file exists and is a tar file
+    if os.path.isfile(input_file) and tarfile.is_tarfile(input_file):
+        unpack_dir = os.path.splitext(input_file)[0]
+        tar_file = tarfile.open(input_file, mode='r:gz')
+        # extract data to subdirectory
+        tar_file.extractall(unpack_dir)
+        
+        # close tar file
+        tar_file.close()
+
+        return unpack_dir
+
+    elif not os.path.isfile(input_file):
+        raise Exception(f'Input file does not exist: {input_file}')
+    elif not tarfile.is_tarfile(input_file):
+        raise Exception(f'Input file is not a tar file: {input_file}')
+        
+
     
-    ## get solar geometry
-    print "Getting metadata ..."
-    Metadata = glob.glob1(gz_folder, "*.xml")
-    xmldoc = etree.parse(gz_folder + "/" + Metadata[0])
-    root = xmldoc.getroot()
-    SunAngleData=str(root[0][6].attrib)
-    charlist="':}{,"
-    for char in charlist:
-        SunAngleData=SunAngleData.replace(char,"")
-    SunAngleList=SunAngleData.split()
-    Zen= float(SunAngleList[3])
-    Az= float(SunAngleList[5])
-    Az = int(Az)
-    Alt= float(90 - Zen)
-    print Alt
-    print Az
+def create_dem_and_slope(output_dir, band_files, us_dem, slope_in):
+    '''
+    Create DEM and percent slope as output TIFF files.
+    INPUTS:
+        output_dir : str : path to save DEM and slope TIFF files
+        band_files : list of str : list of paths to each band in the Landsat or HLS data
+        
+    RETURNS:
+        
+    '''
+    dem_out = os.path.join(output_dir, 'DEM.tif')
+    slope_out = os.path.join(output_dir, 'slope.tif')
+
+    geo_transform, projection, n_col, n_row = get_band_properties(band_files)
+
+    # get min/max coordinates from landsat bands
+    min_x = geo_transform[0]
+    max_y = geo_transform[3]
+    max_x = min_x + geo_transform[1] * n_col
+    min_y = max_y + geo_transform[5] * n_row
+
+    # open total US DEM and percent slope
+    dem_in = gdal.Open(us_dem)
+    slope_in = gdal.Open(slope_in)
+
+    # clip DEM and slope
+    #XXX are these clipped images saved? check on this
+    geo_clip = [min_x, max_y, max_x, min_y]
+    dem_clip = gdal.Translate(dem_out, dem_in, projWin=geo_clip)
+    slope_clip = gdal.Translate(slope_out, slope_in, projWin=geo_clip)
+    #perslp = gdal.DEMProcessing(slope_out, dem_clip, 'slope', slopeFormat = 'percent', format = 'GTiff')
+
+
+def get_tar_metadata(metadata_file):
+    '''
+    '''
+
+    azimuth_search = 'SUN_AZIMUTH'
+    altitude_search = 'SUN_ELEVATION'
+    with open(metadata_file, 'r') as metadata:
+        for line in metadata.readlines():
+            if re.search(azimuth_search, line, re.I):
+                # get rid of whitespace
+                azimuth_line = line.replace(' ', '')
+                # get the value on right side of =
+                azimuth = azimuth_line.split('=')[1]
+                azimuth = float(azimuth)
+
+            if re.search(altitude_search, line, re.I):
+                # get rid of whitespace
+                altitude_line = line.replace(' ', '')
+                # get the value on right side of =
+                altitude = altitude_line.split('=')[1]
+                altitude = float(altitude)
+        return azimuth, altitude
+
+
+def get_hls_metadata(hls_filename):
+    hls_data = gdal.Open(hls_filename)
+    hls_metadata = hls_data.GetMetadata()
     
+    zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
+    azimuth_search = 'MEAN_SUN_AZIMUTH_ANGLE'
+
+    zenith = [val for key, val in hls_metadata.items() if zenith_search in key][0]
+    azimuth = [val for key, val in hls_metadata.items() if azimuth_search in key][0]
+
+    zenith = float(zenith)
+    azimuth = float(azimuth)
+    altitude = 90.0 - zenith
+    return azimuth, altitude
+
+
+def dem_slp_hillshade(output_dir, band_files, dem, slp):
+
+    ####################
+
+    dst_hshd = os.path.join(output_dir, 'hillshade.tif')
     ## calculate hillshade
     print "calculate hillshade ..."
     #HillshadeOut="hillshade_mask" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
@@ -134,42 +195,76 @@ def dem_slp_hillshade(gz_folder, dem, slp):
     dst_hlshd = None    
     dst_dem_ds = None
     
-    
-def main(input_file, output_dir, dem, slp):
-    start_time = time.time()
-    print(f'Preprocessing {input_file}')
-    
-    unzip_landsat(input_file, output_dir)
 
-    #TODO add option to specify HLS data instead of zipped landsat
 
-    dem_slp_hillshade(output_dir, dem, slp)
-    
-    preproc_time = round(time.time() - start_time / 60, 0)
-    print('Preprocessing time: {preproc_time} min')
+
+
+def get_band_properties(band_files):
+    '''
+    Get properties of all bands in the Landsat or HLS data.
+    INPUTS:
+        band_files : list of str : list of paths to each band in 
+            the Landsat or HLS data
+    RETURNS:
+        geo_transform : tuple : coordinates of top left corner of all bands
+        projection : 
+        n_col : int : number of columns (pixels in x direction)
+        n_row : int : number of rows (pixels in y direction)
+    '''
+    for i, filename in enumerate(band_files):
+        band = gdal.Open(filename)
+        geo_transform = band.GetGeoTransform()
+        projection = band.GetProjection()
+        n_col = band.RasterXSize
+        n_row = band.RasterYSize + 1 #XXX why +1 ??
+
+        if i != 0:
+            # assert these properties are the same for all bands
+            assert geo_transform == geo_transform_old
+            assert projection == projection_old
+            assert n_col == n_col_old
+            assert n_row == n_row_old
+        geo_transform_old = geo_transform
+        projection_old = projection
+        n_col_old = n_col
+        n_row_old = n_row
+        return geo_transform, projection, n_col, n_row
+
+
 
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
 
     parser.add_argument('input_file',
-            metavar='INPUT_FILE.ZIP',
+            metavar='INPUT_FILE',
             type=str,
             help='input Landsat tar.gz file')
     parser.add_argument('output_dir',
             metavar='OUTPUT_DIR',
             type=str,
             help='output directory for Landsat geotiffs, metadata, and elevation model')
-    parser.add_argument('dem',
-            metavar='DEM_DIR',
+    parser.add_argument('us_dem',
+            metavar='US_DEM',
             type=str,
             help='path to US DEM file')
-    parser.add_argument('slp',
+    parser.add_argument('slope_in',
             metavar='SLOPE_FILE',
             type=str,
             help='path to slope TIF file')
-    
+
+
+    data_type = parser.add_mutually_exclusive_group(required=True)
+    data_type.add_argument(--targz,
+            dest='targz',
+            action='store_true',
+            help='if flagged, input is a Landsat tar.gz file')
+    data_type.add_argument(--hls,
+            dest='targz',
+            action='store_false',
+            help='if flagged, input is HLS data in HDF4 format')
+
+
     args = parser.parse_args()
 
     main(**vars(args))
-

@@ -20,7 +20,7 @@ def get_file_date(filename):
         by date before rasters were opened 
         (and metadata could be read)
     '''
-    pattern = re.compile('L[C,E,T,M]\d{1,2}_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
+    pattern = re.compile('L[C,E,T,M]0\d_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
     assert pattern.match(filename), 'Filename does not match expected Entity ID format.'
 
     file_year = int(filename[15:19])

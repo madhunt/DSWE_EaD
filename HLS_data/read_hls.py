@@ -77,6 +77,13 @@ def main(hdf_file, tiff_output, output_dir):
         # I am returning the dict of band filenames
         # to allow currently unused bands (coastal, nir10m)
         # to be called and used in existing code
+        
+        import json
+        print(json.dumps(hdf_metadata, indent=4))
+
+        breakpoint()
+
+
         return dswe_bands
 
 
@@ -153,7 +160,7 @@ def create_output_file(dswe_bands, file_path):
         dswe_data[key] = data
         
         if i != 0:
-            # assert geo transform and projection remained the same
+            # assert geo transform and projection are the same for all files
             assert geo_transform == geo_transform_old
             assert projection == projection_old
             assert shape == shape_old

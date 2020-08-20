@@ -86,9 +86,6 @@ def main(output_dir, csv_path, scene_ids, dataset, landsat):
         # get download information
         response = api.download(dataset, download_code, entity_id)
 
-
-        print(response)
-
         if response == []:
             raise Exception('No dataset matches the inputs provided')
             continue
