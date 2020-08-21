@@ -12,5 +12,5 @@ jobs:
 
         # Put an example of mandatory inputs here
         with:
-          PROJECT_PATH: DSWE_EaD/HLS_data   #default is the root of the repository
-          REQUIREMENT_PATH: DSWE_EaD/HLS_data/requirement.txt  #default is requirement.txt in the root of your repository
+          PROJECT_PATH: /HLS_data   #default is the root of the repository
+          REQUIREMENT_PATH: /HLS_data/requirement.txt  #default is requirement.txt in the root of your repository
