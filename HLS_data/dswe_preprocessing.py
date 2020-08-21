@@ -1,20 +1,12 @@
 '''
 
 ''' 
-import os
-import numpy as np # just use .shape and get rid of this import
-import gdal
-import datetime
-import glob
-import sys
-import tarfile
 import argparse
-
-
+import gdal
+import os
 import re
 import read_hls
-
-
+import tarfile
 
 
 def main(input_file, output_dir, us_dem, slope_in, targz):
