@@ -78,12 +78,6 @@ def main(hdf_file, tiff_output, output_dir):
         # to allow currently unused bands (coastal, nir10m)
         # to be called and used in existing code
         
-        import json
-        print(json.dumps(hdf_metadata, indent=4))
-
-        breakpoint()
-
-
         return dswe_bands
 
 

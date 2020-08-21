@@ -15,7 +15,6 @@ import re
 import read_hls
 
 
-from lxml import etree
 
 
 def main(input_file, output_dir, us_dem, slope_in, targz):
@@ -32,11 +31,11 @@ def main(input_file, output_dir, us_dem, slope_in, targz):
         band_files = []
         for dirpath, _, filenames in os.walk(unpack_dir):
             for filename in filenames:
-                if '.tif' in filename:
+                if '.tif' or '.TIF' in filename:
                     filepath = os.path.join(dirpath, filename)
                     band_files.append(filepath)
                 if 'MTL' in filename:
-                    metadata_file = filename
+                    metadata_file = os.path.join(dirpath, filename)
 
         # get metadata
         azimuth, altitude = get_tar_metadata(metadata_file)
@@ -55,12 +54,11 @@ def main(input_file, output_dir, us_dem, slope_in, targz):
         azimuth, altitude = get_hls_metadata(hls_filename)
 
 
+    breakpoint()
 
-    #TODO plus, make 3 sep functions for dem, slp, and hillshade
-    create_dem_and_slope(output_dir, band_files, us_dem, slope_in)
+    dem_out, _ = create_dem_and_slope(output_dir, band_files, us_dem, slope_in)
     
-
-    dem_slp_hillshade(output_dir, band_files, dem, slp)
+    create_hillshade(output_dir, dem_out, azimuth, altitude)
 
 
 def untar(input_file, output_dir):
@@ -74,9 +72,11 @@ def untar(input_file, output_dir):
     '''
     # make sure input file exists and is a tar file
     if os.path.isfile(input_file) and tarfile.is_tarfile(input_file):
-        unpack_dir = os.path.splitext(input_file)[0]
+        print('Unpacking Landsat tar file')
+        unpack_dir = os.path.splitext(input_file)[0] + '_unpacked'
         tar_file = tarfile.open(input_file, mode='r:gz')
         # extract data to subdirectory
+
         tar_file.extractall(unpack_dir)
         
         # close tar file
@@ -88,9 +88,50 @@ def untar(input_file, output_dir):
         raise Exception(f'Input file does not exist: {input_file}')
     elif not tarfile.is_tarfile(input_file):
         raise Exception(f'Input file is not a tar file: {input_file}')
-        
 
+
+def get_tar_metadata(metadata_file):
+    '''
+    '''
+    print('Getting metadata')
+
+    azimuth_search = 'SUN_AZIMUTH'
+    altitude_search = 'SUN_ELEVATION'
+    with open(metadata_file, 'r') as metadata:
+        for line in metadata.readlines():
+            if re.search(azimuth_search, line, re.I):
+                # get rid of whitespace
+                azimuth_line = line.replace(' ', '')
+                # get the value on right side of =
+                azimuth = azimuth_line.split('=')[1]
+                azimuth = float(azimuth)
+
+            if re.search(altitude_search, line, re.I):
+                # get rid of whitespace
+                altitude_line = line.replace(' ', '')
+                # get the value on right side of =
+                altitude = altitude_line.split('=')[1]
+                altitude = float(altitude)
+        return azimuth, altitude
+
+
+def get_hls_metadata(hls_filename):
+    print('Getting metadata')
+    hls_data = gdal.Open(hls_filename)
+    hls_metadata = hls_data.GetMetadata()
     
+    zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
+    azimuth_search = 'MEAN_SUN_AZIMUTH_ANGLE'
+
+    zenith = [val for key, val in hls_metadata.items() if zenith_search in key][0]
+    azimuth = [val for key, val in hls_metadata.items() if azimuth_search in key][0]
+
+    zenith = float(zenith)
+    azimuth = float(azimuth)
+    altitude = 90.0 - zenith
+    return azimuth, altitude
+
+
 def create_dem_and_slope(output_dir, band_files, us_dem, slope_in):
     '''
     Create DEM and percent slope as output TIFF files.
@@ -117,86 +158,42 @@ def create_dem_and_slope(output_dir, band_files, us_dem, slope_in):
     slope_in = gdal.Open(slope_in)
 
     # clip DEM and slope
-    #XXX are these clipped images saved? check on this
     geo_clip = [min_x, max_y, max_x, min_y]
     dem_clip = gdal.Translate(dem_out, dem_in, projWin=geo_clip)
     slope_clip = gdal.Translate(slope_out, slope_in, projWin=geo_clip)
     #perslp = gdal.DEMProcessing(slope_out, dem_clip, 'slope', slopeFormat = 'percent', format = 'GTiff')
+    return dem_out, slope_out
 
 
-def get_tar_metadata(metadata_file):
+def create_hillshade(output_dir, dem_out, azimuth, altitude):
     '''
+    Create hillshade and save output as TIFF.
     '''
+    hillshade_out = os.path.join(output_dir, 'hillshade.tif')
 
-    azimuth_search = 'SUN_AZIMUTH'
-    altitude_search = 'SUN_ELEVATION'
-    with open(metadata_file, 'r') as metadata:
-        for line in metadata.readlines():
-            if re.search(azimuth_search, line, re.I):
-                # get rid of whitespace
-                azimuth_line = line.replace(' ', '')
-                # get the value on right side of =
-                azimuth = azimuth_line.split('=')[1]
-                azimuth = float(azimuth)
-
-            if re.search(altitude_search, line, re.I):
-                # get rid of whitespace
-                altitude_line = line.replace(' ', '')
-                # get the value on right side of =
-                altitude = altitude_line.split('=')[1]
-                altitude = float(altitude)
-        return azimuth, altitude
-
-
-def get_hls_metadata(hls_filename):
-    hls_data = gdal.Open(hls_filename)
-    hls_metadata = hls_data.GetMetadata()
-    
-    zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
-    azimuth_search = 'MEAN_SUN_AZIMUTH_ANGLE'
-
-    zenith = [val for key, val in hls_metadata.items() if zenith_search in key][0]
-    azimuth = [val for key, val in hls_metadata.items() if azimuth_search in key][0]
-
-    zenith = float(zenith)
-    azimuth = float(azimuth)
-    altitude = 90.0 - zenith
-    return azimuth, altitude
-
-
-def dem_slp_hillshade(output_dir, band_files, dem, slp):
-
-    ####################
-
-    dst_hshd = os.path.join(output_dir, 'hillshade.tif')
-    ## calculate hillshade
-    print "calculate hillshade ..."
-    #HillshadeOut="hillshade_mask" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
     #Hoping the altitude issue is repaired shortly, will be an easy fix once it is corrected
     #Hillshade = gdal.DEMProcessing('hillshade.tif', DEM, 'hillshade', format = 'GTiff', azimuth = Az, altitude=Alt)
-    dst_dem_ds = gdal.Open(dst_dem)
-    geotrans = dst_dem_ds.GetGeoTransform()
-    prj = dst_dem_ds.GetProjectionRef()
-    hlshd_ds = gdal.DEMProcessing(dst_hshd, dst_dem_ds, 'hillshade', format = 'GTiff', azimuth = Az) # this fails on linux :(
-    hlshd_band = hlshd_ds.GetRasterBand(1)
-    hlshd_data = hlshd_band.ReadAsArray()
-    
-    # save the hillshade
-    nrows,ncols = np.shape(hlshd_data)
-    driver = gdal.GetDriverByName("GTiff")
-    dst_hlshd = driver.Create(dst_hshd, ncols, nrows, 1, gdal.GDT_Byte)
-    dst_hlshd.SetGeoTransform( geotrans )
-    dst_hlshd.SetProjection( prj )
-    hlsh_band = dst_hlshd.GetRasterBand(1)       
-    hlsh_band.WriteArray( hlshd_data )
-    hlsh_band.SetNoDataValue(255)
-    hlsh_band = None
-    dst_hlshd.FlushCache()
-    dst_hlshd = None    
-    dst_dem_ds = None
     
 
+    dem_out = gdal.Open(dem_out)
+    geo_transform = dem_out.GetGeoTransform()
+    projection = dem_out.GetProjectionRef()
 
+    # calculate hillshade
+    hillshade = gdal.DEMProcessing(hillshade_out, dem_out, 'hillshade', format='GTiff', azimuth=azimuth) #, altitude=altitude)
+    assert hillshade.RasterCount == 1
+    hillshade_data = hillshade.GetRasterBand(1).ReadAsArray()
+
+    shape = hillshade_data.shape
+    driver = gdal.GetDriverByName('GTiff')
+
+    outdata = driver.Create(hillshade_out, shape[1], shape[0], 1, gdal.GDT_Byte) 
+    outdata.SetGeoTransform(geo_transform)
+    outdata.SetProjection(projection)
+    outdata.GetRasterBand(1).SetNoDataValue(255)
+    outdata.GetRasterBand(1).WriteArray(hillshade_data)
+
+    outdata.FlushCache()
 
 
 def get_band_properties(band_files):
@@ -231,8 +228,6 @@ def get_band_properties(band_files):
         return geo_transform, projection, n_col, n_row
 
 
-
-    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
 
@@ -253,13 +248,12 @@ if __name__ == '__main__':
             type=str,
             help='path to slope TIF file')
 
-
     data_type = parser.add_mutually_exclusive_group(required=True)
-    data_type.add_argument(--targz,
+    data_type.add_argument('--targz',
             dest='targz',
             action='store_true',
             help='if flagged, input is a Landsat tar.gz file')
-    data_type.add_argument(--hls,
+    data_type.add_argument('--hls',
             dest='targz',
             action='store_false',
             help='if flagged, input is HLS data in HDF4 format')
