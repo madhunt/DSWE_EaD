@@ -50,7 +50,7 @@ def main(output_dir, csv_path, scene_ids, dataset, landsat):
 
         if dataset == False and landsat == True:
             # assign datasets and scenes to products
-            datasets, scene_ids = assign_datasets_and_scenes(product_ids)
+            datasets, scene_ids = assign_datasets_and_scenes(product_ids, api)
 
         if dataset == False and landsat == False:
             # datasets are unknown but NOT landsat
@@ -58,10 +58,13 @@ def main(output_dir, csv_path, scene_ids, dataset, landsat):
 
         elif dataset == True:
             # csv contains datasets
-            datasets, scene_ids = assign_scenes(product_ids)
+            datasets, scene_ids = assign_scenes(product_ids, api)
 
     # download data
     os.makedirs(output_dir, exist_ok=True)
+
+    print(scene_ids)
+    print(datasets)
 
     for i, entity_id in enumerate(scene_ids):
         print(f'Downloading scene {i+1} of {len(scene_ids)}')
@@ -116,7 +119,7 @@ def assign_datasets(scene_ids):
     return datasets, scene_ids_real
 
 
-def assign_datasets_and_scenes(product_ids):
+def assign_datasets_and_scenes(product_ids, api):
     '''
     Assign datasets and scene IDs to product IDs.
     '''
@@ -136,13 +139,14 @@ def assign_datasets_and_scenes(product_ids):
             scene_id = api.id_lookup(dataset, product_id,
                                         input_field='displayId')
         except Exception:
+            print('Invalid product ID')
             # invalid product ID
             continue
         scene_ids.append(scene_id[0])
     return datasets, scene_ids
 
 
-def assign_scenes(product_ids):
+def assign_scenes(product_ids, api):
     '''
     Assign scenes to product IDs with known datasets.
     '''
@@ -155,6 +159,7 @@ def assign_scenes(product_ids):
             scene_id = api.id_lookup(dataset, product_id,
                                         input_field='displayId')
         except Exception:
+            print('Invalid product ID or dataset')
             # invalid product ID or dataset
             continue
         scene_ids.append(scene_id[0])

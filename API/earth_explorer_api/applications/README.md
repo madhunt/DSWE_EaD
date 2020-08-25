@@ -81,7 +81,7 @@ usage: search.py [-h] [--download_code DOWNLOAD_CODE]
 ## untar.py
 Untars downloaded data into folders of the same name.
 ```
-usage: untar.py [-h] OUTPUT_DIR {True,False}
+usage: untar.py [-h] [--delete_tars] OUTPUT_DIR
 ```
 - *Example Usage*
 
