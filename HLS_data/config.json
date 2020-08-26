@@ -1,0 +1,18 @@
+{
+    "WIGT": 1.2,
+    "AWGT": 0.0,
+    "WIGT" : 0.124,
+    "AWGT" : 0,
+    "AWE_param1" : 2.5,
+    "AWE_param2" : -1.5,
+    "AWE_param3" : -0.25,
+    "PSW1_MNDWI" : -0.44,
+    "PSW1_NIR" : 1500,
+    "PSW1_SWIR1" : 900,
+    "PSW1_NDVI" : 0.7,
+    "PSW2_MNDWI" : -0.5,
+    "PSW2_BLUE" : 1000,
+    "PSW2_NIR" : 2500,
+    "PSW2_SWIR1" : 3000,
+    "PSW2_SWIR2" : 1000
+}
