@@ -26,6 +26,7 @@ import gdal
 import json
 import numpy as np
 import os
+import read_hls
 
 def percent_slope_horn(elevation_band):
 
@@ -35,9 +36,9 @@ def percent_slope_zeven_thorne(elevation_band):
 
     return percent_slope_band
 
-def hillshade(elevation_band, sun_altitude, sun_azimuth):
+def calculate_hillshade(elevation_band, sun_altitude, sun_azimuth):
 
-    return hillshade_band
+    return hillshade
 
 
 def diagnostic_setup(blue, green, red, nir, swir1, swir2):
@@ -264,6 +265,82 @@ def save_output_tif(data, filename, geo_transform, projection):
     outdata.GetRasterBand(1).WriteArray(data)
     outdata.FlushCache()
 
+def file_to_array(filename):
+    '''
+    Open file as gdal dataset, get geo transform and
+    projection, convert to numpy array.
+    '''
+    data = gdal.Open(filename)
+    geo_transform = data.GetGeoTransform()
+    projection = data.GetProjection()
+    array = data.GetRasterBand(1).ReadAsArray()
+    return array, geo_transform, projection
+
+def assign_bands(files):
+    for filename in files:
+        # assign hillshade and slope
+        #XXX is there any other file from preprocessing that needs to be called in?
+        if 'hillshade' in filename:
+            hillshade = gdal.Open(filename)
+
+        # check if file is HDF4
+        with open(filename, 'rb') as f:
+            magic_string = f.read(4)
+        if magic_string == b'\x0e\x03\x13\x01':
+            # this is a HDF4 file
+            hdf_data = gdal.Open(os.path.abspath(filename))
+            hdf_metadata = hdf_data.GetMetadata_Dict()
+
+            # get bands (subdatasets) from HDF data
+            all_bands = hdf_data.GetSubDatasets()
+
+            # assign each DSWE band
+            for band in all_bands:
+                band_filename = band[0]
+                if 'band02' or 'B02' in filename:
+                    blue, blue_geo, blue_proj = file_to_array(band_filename)
+                if 'band03' or 'B03' in filename:
+                    green, green_geo, green_proj = file_to_array(band_filename)
+                if 'band04' or 'B04' in filename:
+                    red, red_geo, red_proj = file_to_array(band_filename)
+                if 'band05' or 'B8A' in filename:
+                    nir, nir_geo, nir_proj = file_to_array(band_filename)
+                if 'band06' or 'B11' in filename:
+                    swir1, swir1_geo, swir1_proj = file_to_array(band_filename)
+                if 'band07' or 'B12' in filename:
+                    swir2, swir2_geo, swir2_proj = file_to_array(band_filename)
+
+        else:
+            # assign landsat bands
+            #XXX this works for landsat 8, but what about other landsat?
+            if 'B2' in filename:
+                blue, blue_geo, blue_proj = file_to_array(filename)
+            if 'B3' in filename:
+                green, green_geo, green_proj = file_to_array(filename)
+            if 'B4' in filename:
+                red, red_geo, red_proj = file_to_array(filename)
+            if 'B5' in filename:
+                nir, nir_geo, nir_proj = file_to_array(filename)
+            if 'B6' in filename:
+                swir1, swir1_geo, swir1_proj = file_to_array(filename)
+            if 'B7' in filename:
+                swir2, swir2_geo, swir2_proj = file_to_array(filename)
+
+            # assert all bands have the same geo transform, 
+                # projection, and shape
+            assert (blue_geo == green_geo == red_geo == nir_geo ==
+                        swir1_geo == swir2_geo)
+            assert (blue_proj == green_proj == red_proj == nir_proj ==
+                        swir1_proj == swir2_proj)
+            assert (blue.shape == green.shape == red.shape == nir.shape ==
+                        swir1.shape == swir2.shape)
+
+            # assign geo transform, projection, and shape
+            geo_transform = blue_geo
+            projection = blue_proj
+
+    return geo_transform, projection, blue, green, red, nir, swir1, swir2
+
 
 def main(input_dir, output_dir, **kwargs):
     '''
@@ -288,30 +365,18 @@ def main(input_dir, output_dir, **kwargs):
     RETURNS:
     '''
     
-
-
-    # there will be multiple folders
-        # each with landsat/hls tiff bands + hlsd/slp/dem
-
-
-    # need 2 options -- one for existing landsat tiffs
-    # one for feeding hls bands directly into code
-
-
-    # make a list of subdirs (each landsat tile)
-    subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
-
-
-    #XXX needed? better way that isn't filenames?
     # find percent slope file (should be in top dir)
     files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
-    per_slope_str = 'perslp'
-    for file in files:
-        if per_slope_str in file:
-            percent_slope = file
-        #XXX what to do if no percent slope file?
-
-
+    per_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
+    percent_slope = None
+    for filename in files:
+        if per_slope_str in filename:
+            percent_slope = filename
+    if percent_slope == None:
+        raise Exception('No percent slope file found in top directory.')
+    
+    # make a list of subdirectories (separate HLS or Landsat scenes)
+    subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
 
     # for each subdir (separate HLS/landsat scene)
     for input_subdir in subdirs:
@@ -321,59 +386,7 @@ def main(input_dir, output_dir, **kwargs):
 
         # get bands
         files = [f.path for f in os.scandir(input_subdir) if os.path.isfile(f)]
-        for filename in files:
-
-            if targz: # landsat data
-                def file_to_array(filename):
-                    '''
-                    Open file as gdal dataset, get geo transform and
-                    projection, convert to numpy array.
-                    '''
-                    data = gdal.Open(filename)
-                    geo_transform = data.GetGeoTransform()
-                    projection = data.GetProjection()
-                    array = data.GetRasterBand(1).ReadAsArray()
-                    return array, geo_transform, projection
-
-                if 'B2' in filename:
-                    blue, blue_geo, blue_proj = file_to_array(filename)
-                if 'B3' in filename:
-                    green, green_geo, green_proj = file_to_array(filename)
-                if 'B4' in filename:
-                    red, red_geo, red_proj = file_to_array(filename)
-                if 'B5' in filename:
-                    nir, nir_geo, nir_proj = file_to_array(filename)
-                if 'B6' in filename:
-                    swir1, swir1_geo, swir1_proj = file_to_array(filename)
-                if 'B7' in filename:
-                    swir2, swir2_geo, swir2_proj = file_to_array(filename)
-
-                # assert all bands have the same geo transform, 
-                    # projection, and shape
-                assert (blue_geo == green_geo == red_geo == nir_geo ==
-                            swir1_geo == swir2_geo)
-                assert (blue_proj == green_proj == red_proj == nir_proj ==
-                            swir1_proj == swir2_proj)
-                assert (blue.shape == green.shape == red.shape == nir.shape ==
-                            swir1.shape == swir2.shape)
-
-                # assign geo transform, projection, and shape
-                geo_transform = blue_geo
-                projection = blue_proj
-                #shape = blue.shape
-
-                #XXX this works for landsat 8, but what about other landsat?
-                    #XXX what are B6_VCID_1 and 2 in LE07 tar file??
-            else: #HLS data
-                #XXX find out what to do here to get bands!!
-                # read from TIFF or get from read_hls!!
-                pass 
-            #TODO what is the CF mask????????????????
-            #XXX use to get no data pixels
-
-
-
-
+        geo_transform, projection, blue, green, red, nir, swir1, swir2 = assign_bands(files)
 
 
         #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
