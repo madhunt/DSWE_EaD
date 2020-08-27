@@ -20,37 +20,16 @@
 # SWIR2 = Landsat TM/ETM Band 7 or OLI Band 7
 # CF= Landsat Cfmask- Cloud, Cloud Shadow, and Snow Mask distributed with LSRP data
 
-import numpy as np
-import gdal
-import os
-import datetime
-import glob
 import argparse
-
-
-WIGT = 0.124
-AWGT = 0
-AWE_param1 = 2.5
-AWE_param2 = -1.5
-AWE_param3 = -0.25
-PSW1_MNDWI = -0.44
-PSW1_NIR = 1500
-PSW1_SWIR1 = 900
-PSW1_NDVI = 0.7
-PSW2_MNDWI = -0.5
-PSW2_BLUE = 1000
-PSW2_NIR = 2500
-PSW2_SWIR1 = 3000
-PSW2_SWIR2 = 1000
-# Cutoff value for hillshade, values for hillshade range from 1-255, the lower the more shaded.
-HS=110
-
-
+import datetime
+import gdal
+import json
+import numpy as np
+import os
 
 def percent_slope_horn(elevation_band):
 
     return percent_slope_band
-
 
 def percent_slope_zeven_thorne(elevation_band):
 
@@ -60,50 +39,110 @@ def hillshade(elevation_band, sun_altitude, sun_azimuth):
 
     return hillshade_band
 
+
 def diagnostic_setup(blue, green, red, nir, swir1, swir2):
     '''
-    input bands as np arrays
+    Calculate indexes based on non-fill (valid) pixels of
+    input bands for diagnostic tests.
+    INPUTS:
+        Unscaled Surface Reflectance bands (blue, green,
+        red, NIR, SWIR1, and SWIR2 wavelengths) as numpy
+        arrays.
+    RETURNS:
+        Five indexes for non-fill pixel values as numpy
+        arrays.
     '''
-    # calculate indexes for non-fill (valid) pixels:
-
     # Modified Normalized Difference Wetness Index
     mndwi = (green - swir1) / (green + swir1)
+    
     # Multi-band Spectral Relationship Visible
     mbsrv = green + red
+    
     # Multi-band Spectral Relationship Near-Infrared
     mbsrn = nir + swir1
+    
     # Automated Water Extent Shadow
     awesh = blue + (2.5 * green) - (1.5 * mbsrn) - (0.25 * swir2)
+    
     # Normalized Difference Vegetation Index
     ndvi = (nir - red) / (nir + red)
 
     return mndwi, mbsrv, mbsrn, awesh, ndvi
 
-def diagnostic_tests(shape, mndwi, mbsrv, mbsrn, awesh, ndvi):
 
-   #XXX get const values in here!! (eg wigt, pswt, etc) 
+def get_thresholds():
+    '''
+    Open the thresholds.json file, which should be in the same
+    directory as this python file.
+    Returns the threshold values as a dictionary.
+    '''
+    # get path of this file
+    script_path = os.path.realpath(__file__)
+    thresholds_path = os.path.join(script_path, 'thresholds.json')
 
-    # perform 5 diagnostic tests:
-    # test 1
+    # make sure the thresholds.json file exists
+    if os.path.isfile(thresholds_path):
+        with open(thresholds_path, 'r') as f:
+            thresholds_dict = json.load(f)
+        return thresholds_dict
+
+    else:
+        raise Exception('Make sure thresholds.json is in the same '
+                            'directory as this python file')
+
+
+def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
+    '''
+    Perform five diagnostic tests on indexes calculated from the
+    input bands.
+    INPUTS:
+        Indexes calculated in diagnostic_setup() from the input bands,
+        as numpy arrays.
+    RETURNS:
+        diag : 3D numpy array : array with boolean array of test
+            results for each pixel; shape is shape of input bands
+            by 5 (n, n, 5)
+    '''
+    # get threshold values to perform tests
+    thresholds_dict = get_thresholds()
+    wigt = thresholds_dict['WIGT']
+    awgt = thresholds_dict['AWGT']
+    pswt_1_mndwi = thresholds_dict['PSWT_1_MNDWI']
+    pswt_1_nir = thresholds_dict['PSWT_1_NIR']
+    pswt_1_swir1 = thresholds_dict['PSWT_1_SWIR1']
+    pswt_1_ndvi = thresholds_dict['PSWT_1_NDVI']
+    pswt_2_mndwi = thresholds_dict['PSWT_2_MNDWI']
+    pswt_2_blue = thresholds_dict['PSWT_2_BLUE']
+    pswt_2_nir = thresholds_dict['PSWT_2_NIR']
+    pswt_2_swir1 = thresholds_dict['PSWT_2_SWIR1']
+    pswt_2_swir2 = thresholds_dict['PSWT_2_SWIR2']
+
+    # we've already asserted that shapes are the same, so this is safe
+    shape = mndwi.shape
+
+    # test 1 : compare MNDWI to WIGT Wetness Index threshold
     test1 = np.full(shape, False, dtype=bool)
     test1[mndwi > wigt] = True
 
-    # test 2
+    # test 2 : compare MBSRV and MBSRN values to each other
     test2 = np.full(shape, False, dtype=bool)
     test2[mbsrv > mbsrn] = True
 
-    # test 3
+    # test 3 : compare AWESH to AWGT Automated Water Extent
+        # Shadow threshold
     test3 = np.full(shape, False, dtype=bool)
     test3[awesh > awgt] = True
 
-    # test 4
+    # test 4 : compare MNDWI and NDVI along with NIR and SWIR bands
+        # to the Partial Surface Water Test 1 thresholds
     test4 = np.full(shape, False, dtype=bool)
     test4[(mndwi > pswt_1_mndwi) & 
             (swir1 < pswt_1_swir1) &
             (nir < pswt_1_nir) &
             (ndvi < pswt_1_ndvi)] = True
 
-    # test 5
+    # test 5 : compare the MNDWI along with Blue, NIR, SWIR1, and
+        # SWIR2 bands to the Partial Surface Water Test 2 thresholds
     test5 = np.full(shape, False, dtype=bool)
     test4[(mndwi > pswt_2_mndwi) & 
             (blue < pswt_2_blue) &
@@ -111,48 +150,102 @@ def diagnostic_tests(shape, mndwi, mbsrv, mbsrn, awesh, ndvi):
             (swir2 < pswt_2_swir2) &
             (nir < pswt_1_nir)] = True
 
-    # stack the results together
-        # (so each pixel has a list of 5 bools)
+    # stack the results together (each pixel has 5 corresponding bools)
     diag = np.stack((test1, test2, test3, test4, test5), axis=-1)
-
     return diag
 
 
-def recode_to_interpreted(diag, shape):
-    sum_passed = np.sum(diag, axis=-1)
-
-    assert sum_true.shape == shape
-
+def recode_to_interpreted(diag):
+    '''
+    Recode results of five diagnostic tests to interpreted class
+    DSWE band.
+    INPUTS:
+        diag : 3D numpy array : n by n array with results of
+            diagnostic tests as 5-element list in 3rd dimension;
+            shape (n, n, 5)
+    RETURNS:
+        intr : 2D numpy array : n by n array with integer elements of
+            DSWE interpreted classifications
+            Pixel Value | Interpretation
+                0       | Not Water
+                1       | Water, High Confidence
+                2       | Water, Moderate Confidence
+                3       | Potential Wetland
+                4       | Low Confidence Water or Wetland
+                255     | Fill (no data)
+    '''
+    # get shape of input bands, or first two elements of diag shape
+    shape = diag.shape[0:2]
     intr = np.empty(shape, dtype=int)
     
-    # not water (0 or 1 tests passed)
+    # get the sum of the tests passed for each pixel
+        # True = 1, False = 0, so this is equivalent to the number 
+        # of tests passed
+    sum_passed = np.sum(diag, axis=-1)
+
+    # not water : 0 or 1 total tests passed
     intr[(sum_passed == 0) | (sum_passed == 1)] = 0
 
-    # water - high confidence (4 or 5 tests passed)
+    # water, high confidence : 4 or 5 total tests passed
     intr[(sum_passed == 4) | (sum_passed == 5)] = 1
 
-    # water - moderate confidence (3 tests passed)
+    # water, moderate confidence : 3 total tests passed
     intr[sum_passed == 3] = 2
 
-    # potential wetland - tests 1 and 2 passed
-    # delete all but first 2 tests for each pixel
-    sum_1_2 = np.delete(diag, np.s_[2:], -1)
-    sum_1_2 = np.sum(sum_1_2, axis=-1)
+    # potential wetland : only first two tests passed
+    # delete all but first 2 tests for each pixel and sum them
+    sum_first_two = np.delete(diag, np.s_[2:], -1)
+    sum_first_two = np.sum(sum_1_2, axis=-1)
+    intr[(sum_first_two == 2) & (sum_passed == 2)] = 3
 
-    intr[(sum_1_2 == 2) & (sum_passed == 2)] = 3
-
-    # low confidence water or wetland - 2 tests passed
-        # (except not both 1 and 2)
-    intr[(sum_passed == 2) & (sum_1_2 != 2)] = 4
-
-
-    #TODO make sure that 255 (fill values) are accounted for!!!!!!!!!!!!
+    # low confidence water or wetland : 2 total tests passed 
+        # (but not both of the first two tests)
+    intr[(sum_passed == 2) & (sum_first_two != 2)] = 4
 
     return intr
 
+
+def filter_interpreted(intr, percent_slope, hillshade, pixel_qa):
+    '''
+    Filter the interpreted band results with the percent slope,
+    hillshade, and pixel QA bands.
+    INPUTS:
+    RETURNS:
+    '''
+    # get threshold values needed for calculations
+    thresholds_dict = get_thresholds()
+    percent_slope_high = thresholds_dict['PERCENT_SLOPE_HIGH']
+    percent_slope_moderate = thresholds_dict['PERCENT_SLOPE_MODERATE']
+    percent_slope_wetland = thresholds_dict['PERCENT_SLOPE_WETLAND']
+    percent_slope_low = thresholds_dict['PERCENT_SLOPE_LOW']
+    hillshade_threshold = thresholds_dict['HILLSHADE']
+    
+    intr_filtered = intr.copy()
+
+    # test 1 : compare percent slope band to percent slope thresholds;
+        # remove locations where terrain is too sloped to hold water
+    intr_filtered[(percent_slope >= percent_slope_high) &
+                    (intr == 1)] = 0
+    intr_filtered[(percent_slope >= percent_slope_moderate) &
+                    (intr == 2)] = 0
+    intr_filtered[(percent_slope >= percent_slope_wetland) &
+                    (intr == 3)] = 0
+    intr_filtered[(percent_slope >= percent_slope_low) &
+                    (intr == 4)] = 0
+
+    # test 2 : compare hillshade band to hillshade threshold
+    intr_filtered[hillshade <= hillshade_threshold] = 0
+
+    # test 3 : compare pixel QA band to cloud, snow, and cloud shadow
+        # values
+    #TODO what does it mean when the pixel QA cloud, snow, or cloud shadow bit is set?????????????
+    #intr_filtered[pixel_qa == ????] = 9
+    return intr_filtered
+
+
 def save_output_tif(data, filename, geo_transform, projection):
     '''
-    
+    Save a numpy array of data as a GeoTiff file.
     INPUTS:
         data : numpy array : data to save
         filename : str : full path and filename for output file
@@ -164,14 +257,12 @@ def save_output_tif(data, filename, geo_transform, projection):
     '''
     shape = array.shape
     driver = gdal.GetDriverByName('GTiff')
-
     outdata = driver.Create(filename, shape[1], shape[0], 1, gdal.GDT_Byte)
     outdata.SetGeoTransform(geo_transform)
     outdata.SetProjection(projection)
     outdata.GetRasterBand(1).SetNoDataValue(255)
     outdata.GetRasterBand(1).WriteArray(data)
     outdata.FlushCache()
-
 
 
 def main(input_dir, output_dir, **kwargs):
@@ -198,7 +289,6 @@ def main(input_dir, output_dir, **kwargs):
     '''
     
 
-    #os.chdir(input_dir)
 
     # there will be multiple folders
         # each with landsat/hls tiff bands + hlsd/slp/dem
@@ -270,7 +360,7 @@ def main(input_dir, output_dir, **kwargs):
                 # assign geo transform, projection, and shape
                 geo_transform = blue_geo
                 projection = blue_proj
-                shape = blue.shape
+                #shape = blue.shape
 
                 #XXX this works for landsat 8, but what about other landsat?
                     #XXX what are B6_VCID_1 and 2 in LE07 tar file??
@@ -286,10 +376,11 @@ def main(input_dir, output_dir, **kwargs):
 
 
 
+        #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
         # calculate indexes for diagnostic tests
         mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(blue, 
                                         green, red, nir, swir1, swir2)
-        diag = diagnostic_tests(shape, mndwi, mbsrv, mbsrn, awesh, ndvi)
+        diag = diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi)
         
         if include_tests:
             # save diag to TIF
@@ -420,7 +511,8 @@ def old_code():
         del hillshade_clip, hillshade, MaskLayer, CF, MaskLayerOut, MaskLayer_Output, diagoutput
         del Metadata, diagmap_out, interpmap_masked, interpmap_out, interpmaskoutput, interpoutput, perslp, perslp_clip           
 
-#XXX command line options for later  
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=(''))
 
