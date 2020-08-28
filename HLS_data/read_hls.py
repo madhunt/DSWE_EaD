@@ -30,6 +30,8 @@ def main(hdf_file, tiff_output, output_dir):
     # get bands (subdatasets) from HDF data
     all_bands = hdf_data.GetSubDatasets()
 
+    breakpoint()
+
     # assign each DSWE band
     dswe_bands = {}
     for band in all_bands:
@@ -50,6 +52,8 @@ def main(hdf_file, tiff_output, output_dir):
             dswe_bands['swir1'] = band_filename
         if 'band07' or 'B12' in band_filename:
             dswe_bands['swir2'] = band_filename
+        if 'Grid:QA' in band_filename:
+            dswe_bands['QA'] = band_filename
 
     if tiff_output:
         print('Creating output file')

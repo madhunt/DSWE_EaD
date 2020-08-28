@@ -102,7 +102,7 @@ def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
     RETURNS:
         diag : 3D numpy array : array with boolean array of test
             results for each pixel; shape is shape of input bands
-            by 5 (n, n, 5)
+            by 5 (n, m, 5)
     '''
     # get threshold values to perform tests
     thresholds_dict = get_thresholds()
@@ -161,11 +161,11 @@ def recode_to_interpreted(diag):
     Recode results of five diagnostic tests to interpreted class
     DSWE band.
     INPUTS:
-        diag : 3D numpy array : n by n array with results of
+        diag : 3D numpy array : n by m array with results of
             diagnostic tests as 5-element list in 3rd dimension;
-            shape (n, n, 5)
+            shape (n, m, 5)
     RETURNS:
-        intr : 2D numpy array : n by n array with integer elements of
+        intr : 2D numpy array : n by m array with integer elements of
             DSWE interpreted classifications
             Pixel Value | Interpretation
                 0       | Not Water
@@ -206,45 +206,8 @@ def recode_to_interpreted(diag):
     return intr
 
 
-def filter_interpreted(intr, percent_slope, hillshade, pixel_qa):
-    '''
-    Filter the interpreted band results with the percent slope,
-    hillshade, and pixel QA bands.
-    INPUTS:
-    RETURNS:
-    '''
-    # get threshold values needed for calculations
-    thresholds_dict = get_thresholds()
-    percent_slope_high = thresholds_dict['PERCENT_SLOPE_HIGH']
-    percent_slope_moderate = thresholds_dict['PERCENT_SLOPE_MODERATE']
-    percent_slope_wetland = thresholds_dict['PERCENT_SLOPE_WETLAND']
-    percent_slope_low = thresholds_dict['PERCENT_SLOPE_LOW']
-    hillshade_threshold = thresholds_dict['HILLSHADE']
-    
-    intr_filtered = intr.copy()
 
-    # test 1 : compare percent slope band to percent slope thresholds;
-        # remove locations where terrain is too sloped to hold water
-    intr_filtered[(percent_slope >= percent_slope_high) &
-                    (intr == 1)] = 0
-    intr_filtered[(percent_slope >= percent_slope_moderate) &
-                    (intr == 2)] = 0
-    intr_filtered[(percent_slope >= percent_slope_wetland) &
-                    (intr == 3)] = 0
-    intr_filtered[(percent_slope >= percent_slope_low) &
-                    (intr == 4)] = 0
-
-    # test 2 : compare hillshade band to hillshade threshold
-    intr_filtered[hillshade <= hillshade_threshold] = 0
-
-    # test 3 : compare pixel QA band to cloud, snow, and cloud shadow
-        # values
-    #TODO what does it mean when the pixel QA cloud, snow, or cloud shadow bit is set?????????????
-    #intr_filtered[pixel_qa == ????] = 9
-    return intr_filtered
-
-
-def save_output_tif(data, filename, geo_transform, projection):
+def save_output_tiff(data, filename, geo_transform, projection):
     '''
     Save a numpy array of data as a GeoTiff file.
     INPUTS:
@@ -265,6 +228,7 @@ def save_output_tif(data, filename, geo_transform, projection):
     outdata.GetRasterBand(1).WriteArray(data)
     outdata.FlushCache()
 
+
 def file_to_array(filename):
     '''
     Open file as gdal dataset, get geo transform and
@@ -275,6 +239,7 @@ def file_to_array(filename):
     projection = data.GetProjection()
     array = data.GetRasterBand(1).ReadAsArray()
     return array, geo_transform, projection
+
 
 def assign_bands(files):
     for filename in files:
@@ -309,6 +274,8 @@ def assign_bands(files):
                     swir1, swir1_geo, swir1_proj = file_to_array(band_filename)
                 if 'band07' or 'B12' in filename:
                     swir2, swir2_geo, swir2_proj = file_to_array(band_filename)
+                if 'Grid:QA' in band_filename:
+                    pixel_qa, qa_geo, qa_proj = file_to_array(band_filename)
 
         else:
             # assign landsat bands
@@ -325,21 +292,93 @@ def assign_bands(files):
                 swir1, swir1_geo, swir1_proj = file_to_array(filename)
             if 'B7' in filename:
                 swir2, swir2_geo, swir2_proj = file_to_array(filename)
+            if 'BQA' in filename:
+                pixel_qa, qa_geo, qa_proj = file_to_array(filename)
+
 
             # assert all bands have the same geo transform, 
                 # projection, and shape
             assert (blue_geo == green_geo == red_geo == nir_geo ==
-                        swir1_geo == swir2_geo)
+                        swir1_geo == swir2_geo == qa_geo)
             assert (blue_proj == green_proj == red_proj == nir_proj ==
-                        swir1_proj == swir2_proj)
+                        swir1_proj == swir2_proj == qa_proj)
             assert (blue.shape == green.shape == red.shape == nir.shape ==
-                        swir1.shape == swir2.shape)
+                        swir1.shape == swir2.shape == qa.shape)
 
             # assign geo transform, projection, and shape
             geo_transform = blue_geo
             projection = blue_proj
 
-    return geo_transform, projection, blue, green, red, nir, swir1, swir2
+    return geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa
+
+
+def filter_interpreted(intr, percent_slope, hillshade, pixel_qa):
+    '''
+    Filter the interpreted band results with the percent slope,
+    hillshade, and pixel QA bands.
+    INPUTS:
+    RETURNS:
+    '''
+    # get threshold values needed for calculations
+    thresholds_dict = get_thresholds()
+    percent_slope_high = thresholds_dict['PERCENT_SLOPE_HIGH']
+    percent_slope_moderate = thresholds_dict['PERCENT_SLOPE_MODERATE']
+    percent_slope_wetland = thresholds_dict['PERCENT_SLOPE_WETLAND']
+    percent_slope_low = thresholds_dict['PERCENT_SLOPE_LOW']
+    hillshade_threshold = thresholds_dict['HILLSHADE']
+    
+    intr_filtered = intr.copy()
+
+    # test 1 : compare percent slope band to percent slope thresholds;
+        # remove locations where terrain is too sloped to hold water
+    intr_filtered[(percent_slope >= percent_slope_high) &
+                    (intr == 1)] = 0
+    intr_filtered[(percent_slope >= percent_slope_moderate) &
+                    (intr == 2)] = 0
+    intr_filtered[(percent_slope >= percent_slope_wetland) &
+                    (intr == 3)] = 0
+    intr_filtered[(percent_slope >= percent_slope_low) &
+                    (intr == 4)] = 0
+
+    # test 2 : compare hillshade band to hillshade threshold
+    intr_filtered[hillshade <= hillshade_threshold] = 0
+
+    # test 3 : compare pixel QA band to cloud, snow, and cloud shadow values
+        # if pixel QA cloud (bit 1), cloud shadow (bit 3), and/or 
+        # snow (bit 4) is set
+    intr_filtered[(pixel_qa & 
+                    ((1 << 1) | (1 << 3) | (1 << 4))) != 0] = 9
+
+    return intr_filtered
+
+
+def mask(intr, percent_slope, hillshade, pixel_qa):
+
+    shape = intr.shape
+    mask = np.zeros(shape)
+
+    # 1 : contribution of pixel QA mask
+    # if pixel QA cloud shadow (bit 3) is set
+    mask[(pixel_qa & (1 << 3)) != 0] = 0
+    # if pixel QA snow (bit 4) is set
+    mask[(pixel_qa & (1 << 4)) != 0] = 1
+    # if pixel QA cloud (bit 1) is set
+    mask[(pixel_qa & (1 << 1)) != 0] = 2
+
+    # 2 : contribution of percent slope mask
+    mask[(percent_slope >= percent_slope_high) &
+                    (intr == 1)] = 3
+    mask[(percent_slope >= percent_slope_moderate) &
+                    (intr == 2)] = 3
+    mask[(percent_slope >= percent_slope_wetland) &
+                    (intr == 3)] = 3
+    mask[(percent_slope >= percent_slope_low) &
+                    (intr == 4)] = 3
+
+
+
+
+    return mask
 
 
 def main(input_dir, output_dir, **kwargs):
@@ -361,21 +400,22 @@ def main(input_dir, output_dir, **kwargs):
         use_toa : bool : if flagged, Top of Atmosphere (TOA)
             reflectance is used; otherwise, defaults to Surface
             Reflectance
+        quiet : bool : if flagged, no print messages are shown
         
     RETURNS:
     '''
     
     # find percent slope file (should be in top dir)
     files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
-    per_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
+    percent_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
     percent_slope = None
     for filename in files:
-        if per_slope_str in filename:
+        if any(substr in filename for substr in percent_slope_str):
             percent_slope = filename
     if percent_slope == None:
         raise Exception('No percent slope file found in top directory.')
     
-    # make a list of subdirectories (separate HLS or Landsat scenes)
+    # make a list of subdirectories (separate HLS or Landsat scenes after pre-processing)
     subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
 
     # for each subdir (separate HLS/landsat scene)
@@ -386,7 +426,7 @@ def main(input_dir, output_dir, **kwargs):
 
         # get bands
         files = [f.path for f in os.scandir(input_subdir) if os.path.isfile(f)]
-        geo_transform, projection, blue, green, red, nir, swir1, swir2 = assign_bands(files)
+        geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = assign_bands(files)
 
 
         #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
@@ -396,17 +436,30 @@ def main(input_dir, output_dir, **kwargs):
         diag = diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi)
         
         if include_tests:
-            # save diag to TIF
+            # save diag as TIF
             diag_filename = os.path.join(output_subdir, 'DIAG.tif') #XXX better filename -- landsat_id_info_DIAG.TIF
-            save_output_tif(diag, diag_filename, geo_transform, projection)
+            save_output_tiff(diag, diag_filename, geo_transform, projection)
 
         # recode to interpreted DSWE
         intr = recode_to_interpreted(diag, shape)
+        # save intr as TIF
+        intr_filename = os.path.join(output_subdir, 'INTR.tif')
+        save_output_tiff(intr, intr_filename, geo_transform, projection)
 
-        # save intr to TIF
+        # filter interpreted band results
+        inwm = filter_interpreted(intr, percent_slope, hillshade, pixel_qa)
+        # save intr_filtered as TIF
+        inwm_filename = os.path.join(output_subdir, 'INWM.tif')
+        save_output_tiff(inwm, inwm_filename, geo_transform, projection)
+
+
 
 
     return
+
+
+
+
 
 
 
@@ -564,10 +617,10 @@ if __name__ == '__main__':
             help=('if flagged, Top of Atmosphere (TOA) reflectance is '
             'used; otherwise, defaults to Surface Reflectance'))
 
-    parser.add_argument('--verbose',
-            dest='verbose',
+    parser.add_argument('--quiet',
+            dest='quiet',
             action='store_true',
-            help='if flagged, more detailed intermediate messages are printed')
+            help='if flagged, no print messages are shown')
 
     args = parser.parse_args()
     main(**vars(args))
