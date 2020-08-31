@@ -1,22 +1,8 @@
 import argparse
-import datetime
 import gdal
-import json
 import numpy as np
 import os
-import read_hls
-
-def percent_slope_horn(elevation_band):
-
-    return percent_slope_band
-
-def percent_slope_zeven_thorne(elevation_band):
-
-    return percent_slope_band
-
-def calculate_hillshade(elevation_band, sun_altitude, sun_azimuth):
-
-    return hillshade
+import utils
 
 
 def diagnostic_setup(blue, green, red, nir, swir1, swir2):
@@ -49,27 +35,6 @@ def diagnostic_setup(blue, green, red, nir, swir1, swir2):
     return mndwi, mbsrv, mbsrn, awesh, ndvi
 
 
-def get_thresholds():
-    '''
-    Open the thresholds.json file, which should be in the same
-    directory as this python file.
-    Returns the threshold values as a dictionary.
-    '''
-    # get path of this file
-    script_path = os.path.realpath(__file__)
-    thresholds_path = os.path.join(script_path, 'thresholds.json')
-
-    # make sure the thresholds.json file exists
-    if os.path.isfile(thresholds_path):
-        with open(thresholds_path, 'r') as f:
-            thresholds_dict = json.load(f)
-        return thresholds_dict
-
-    else:
-        raise Exception('Make sure thresholds.json is in the same '
-                            'directory as this python file')
-
-
 def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
     '''
     Perform five diagnostic tests on indexes calculated from the
@@ -83,7 +48,7 @@ def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
             by 5 (n, m, 5)
     '''
     # get threshold values to perform tests
-    thresholds_dict = get_thresholds()
+    thresholds_dict = utils.get_thresholds()
     wigt = thresholds_dict['WIGT']
     awgt = thresholds_dict['AWGT']
     pswt_1_mndwi = thresholds_dict['PSWT_1_MNDWI']
@@ -184,112 +149,6 @@ def recode_to_interpreted(diag):
     return intr
 
 
-
-def save_output_tiff(data, filename, geo_transform, projection):
-    '''
-    Save a numpy array of data as a GeoTiff file.
-    INPUTS:
-        data : numpy array : data to save
-        filename : str : full path and filename for output file
-        geo_transform : tuple : raster coordinates related to
-            georeferencing coordinates by affine transform
-        projection : list : GDAL projection metadata
-    RETURNS:
-        output file saved as filename
-    '''
-    shape = array.shape
-    driver = gdal.GetDriverByName('GTiff')
-    outdata = driver.Create(filename, shape[1], shape[0], 1, gdal.GDT_Byte)
-    outdata.SetGeoTransform(geo_transform)
-    outdata.SetProjection(projection)
-    outdata.GetRasterBand(1).SetNoDataValue(255)
-    outdata.GetRasterBand(1).WriteArray(data)
-    outdata.FlushCache()
-
-
-def file_to_array(filename):
-    '''
-    Open file as gdal dataset, get geo transform and
-    projection, convert to numpy array.
-    '''
-    data = gdal.Open(filename)
-    geo_transform = data.GetGeoTransform()
-    projection = data.GetProjection()
-    array = data.GetRasterBand(1).ReadAsArray()
-    return array, geo_transform, projection
-
-
-def assign_bands(files):
-    for filename in files:
-        # assign hillshade and slope
-        #XXX is there any other file from preprocessing that needs to be called in?
-        if 'hillshade' in filename:
-            hillshade = gdal.Open(filename)
-
-        # check if file is HDF4
-        with open(filename, 'rb') as f:
-            magic_string = f.read(4)
-        if magic_string == b'\x0e\x03\x13\x01':
-            # this is a HDF4 file
-            hdf_data = gdal.Open(os.path.abspath(filename))
-            hdf_metadata = hdf_data.GetMetadata_Dict()
-
-            # get bands (subdatasets) from HDF data
-            all_bands = hdf_data.GetSubDatasets()
-
-            # assign each DSWE band
-            for band in all_bands:
-                band_filename = band[0]
-                if 'band02' or 'B02' in filename:
-                    blue, blue_geo, blue_proj = file_to_array(band_filename)
-                if 'band03' or 'B03' in filename:
-                    green, green_geo, green_proj = file_to_array(band_filename)
-                if 'band04' or 'B04' in filename:
-                    red, red_geo, red_proj = file_to_array(band_filename)
-                if 'band05' or 'B8A' in filename:
-                    nir, nir_geo, nir_proj = file_to_array(band_filename)
-                if 'band06' or 'B11' in filename:
-                    swir1, swir1_geo, swir1_proj = file_to_array(band_filename)
-                if 'band07' or 'B12' in filename:
-                    swir2, swir2_geo, swir2_proj = file_to_array(band_filename)
-                if 'Grid:QA' in band_filename:
-                    pixel_qa, qa_geo, qa_proj = file_to_array(band_filename)
-
-        else:
-            # assign landsat bands
-            #XXX this works for landsat 8, but what about other landsat?
-            if 'B2' in filename:
-                blue, blue_geo, blue_proj = file_to_array(filename)
-            if 'B3' in filename:
-                green, green_geo, green_proj = file_to_array(filename)
-            if 'B4' in filename:
-                red, red_geo, red_proj = file_to_array(filename)
-            if 'B5' in filename:
-                nir, nir_geo, nir_proj = file_to_array(filename)
-            if 'B6' in filename:
-                swir1, swir1_geo, swir1_proj = file_to_array(filename)
-            if 'B7' in filename:
-                swir2, swir2_geo, swir2_proj = file_to_array(filename)
-            if 'BQA' in filename:
-                pixel_qa, qa_geo, qa_proj = file_to_array(filename)
-
-
-            # assert all bands have the same geo transform, 
-                # projection, and shape
-            assert (blue_geo == green_geo == red_geo == nir_geo ==
-                        swir1_geo == swir2_geo == qa_geo)
-            assert (blue_proj == green_proj == red_proj == nir_proj ==
-                        swir1_proj == swir2_proj == qa_proj)
-            assert (blue.shape == green.shape == red.shape == nir.shape ==
-                        swir1.shape == swir2.shape == qa.shape)
-
-            # assign geo transform, projection, and shape
-            geo_transform = blue_geo
-            projection = blue_proj
-
-    return geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa
-
-
 def mask_interpreted(intr, percent_slope, hillshade, pixel_qa):
     '''
     Filter the interpreted band results with the percent slope,
@@ -309,7 +168,7 @@ def mask_interpreted(intr, percent_slope, hillshade, pixel_qa):
     mask = np.zeros(shape)
 
     # get threshold values needed for calculations
-    thresholds_dict = get_thresholds()
+    thresholds_dict = utils.get_thresholds()
     percent_slope_high = thresholds_dict['PERCENT_SLOPE_HIGH']
     percent_slope_moderate = thresholds_dict['PERCENT_SLOPE_MODERATE']
     percent_slope_wetland = thresholds_dict['PERCENT_SLOPE_WETLAND']
@@ -347,7 +206,6 @@ def mask_interpreted(intr, percent_slope, hillshade, pixel_qa):
     return inwm, mask
 
 
-
 def main(input_dir, output_dir, **kwargs):
     '''
     INPUTS:
@@ -372,18 +230,43 @@ def main(input_dir, output_dir, **kwargs):
     RETURNS:
     '''
     
-    # find percent slope file (should be in top dir)
-    files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
-    percent_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
-    percent_slope = None
-    for filename in files:
-        if any(substr in filename for substr in percent_slope_str):
-            percent_slope = filename
-    if percent_slope == None:
-        raise Exception('No percent slope file found in top directory.')
-    
+#    # find percent slope file (should be in top dir)
+#    files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
+#    percent_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
+#    percent_slope = None
+#    for filename in files:
+#        if any(substr in filename for substr in percent_slope_str):
+#            percent_slope = filename
+#    if percent_slope == None:
+#        raise Exception('No percent slope file found in top directory.')
+#    
     # make a list of subdirectories (separate HLS or Landsat scenes after pre-processing)
-    subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
+#    subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
+
+    #XXX above should be tar or HLS files (remove need for separate pre-processing)
+    
+
+
+
+
+    # make a list of all files (HLS or Landsat) in main dir
+    files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
+    for filename in files:
+        # make an output dir
+
+        output_subdir = os.path.join(output_dir, output
+
+
+
+        # get bands
+        # do hillshade and percent slope preprocessing
+
+
+
+
+
+
+
 
     # for each subdir (separate HLS/landsat scene)
     for input_subdir in subdirs:
@@ -393,7 +276,7 @@ def main(input_dir, output_dir, **kwargs):
 
         # get bands
         files = [f.path for f in os.scandir(input_subdir) if os.path.isfile(f)]
-        geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = assign_bands(files)
+        geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = utils.assign_bands(files)
 
 
         #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
@@ -405,144 +288,22 @@ def main(input_dir, output_dir, **kwargs):
         if include_tests:
             # save diag as TIF
             diag_filename = os.path.join(output_subdir, 'DIAG.tif') #XXX better filename -- landsat_id_info_DIAG.TIF
-            save_output_tiff(diag, diag_filename, geo_transform, projection)
+            utils.save_output_tiff(diag, diag_filename, geo_transform, projection)
 
         # recode to interpreted DSWE
         intr = recode_to_interpreted(diag, shape)
         # save intr as TIF
         intr_filename = os.path.join(output_subdir, 'INTR.tif')
-        save_output_tiff(intr, intr_filename, geo_transform, projection)
+        utils.save_output_tiff(intr, intr_filename, geo_transform, projection)
 
         # filter interpreted band results
         inwm, mask = mask_interpreted(intr, percent_slope, hillshade, pixel_qa)
-        # save intr_filtered as TIF
+        # save inwm as TIF
         inwm_filename = os.path.join(output_subdir, 'INWM.tif')
-        save_output_tiff(inwm, inwm_filename, geo_transform, projection)
-
-
-
-
-    return
-
-
-
-
-
-
-
-
-
-def old_code():
-    for folder in paths:
-        out_name = 'DSWE_V2_P1'
-        
-        # Terrain Correction, here we are simply recoding slopes >=x degrees to PS (specified above), which will be reclassified as non-water.
-
-        perslp = gdal.Open(Perslp)
-        #Get extent and projection
-        perslpgeo = perslp.GetGeoTransform()
-        perslpproj = perslp.GetProjection()
-        # Calculate percent slope
-        #perslp= perslp.GetRasterBand(1).ReadAsArray()
-        os.chdir(working_dir)
-        CF = gdal.Open(CF)
-        #Get extent of CF mask (and our LS image by proxy)
-        geoTransform = CF.GetGeoTransform()
-        minx = geoTransform[0]
-        maxy = geoTransform[3]
-        maxx = minx + geoTransform[1] * CF.RasterXSize
-        miny = maxy + geoTransform[5] * CF.RasterYSize
-        #Clip our slope and hillshade mask to the image (have to do this for each image due to the variable extents of each image)
-        GeoClip= [minx, maxy, maxx, miny]
-        hillshade= gdal.Open(Hillshade)
-        perslp_clip=gdal.Translate('perslp_clip.tif', perslp, projWin = GeoClip)
-        hillshade_clip=gdal.Translate('hillshade_clip.tif', hillshade, projWin = GeoClip)
-        hillshade= hillshade_clip.GetRasterBand(1).ReadAsArray()
-        hillshade[hillshade <= HS] = 0
-        hillshade[hillshade > HS] = 1
-        
-        #Read in the slope and hillshade masks and convert to an array
-        workingoutput_dir=output_dir2 + "\\" + directory
-        if not os.path.exists(workingoutput_dir):
-            os.makedirs(workingoutput_dir)
-            
-        #calculate our unmasked diagnostic map
-        CF= CF.GetRasterBand(1).ReadAsArray()
-        diagoutput=output_dir2 +  "\\" + directory + "\\" + out_name + "_diag" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
-        diagmap[np.where((CF == 255))] = -9999
-        diagmap_out = driver.Create( diagoutput, shape[1], shape[0], 1, gdal.GDT_Int16)
-        diagmap_out.SetGeoTransform( geo )
-        diagmap_out.SetProjection( proj )
-        diagmap_out.GetRasterBand(1).WriteArray(diagmap)
-        diagmap_out.GetRasterBand(1).SetNoDataValue(-9999)
-            
-        
-        # Output unmasked interpreted map
-        interpoutput=output_dir2 +  "\\" + directory + "\\" + out_name + "_interp" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
-        interpmap=diagmap.copy()
-        interpmap[np.where((diagmap == 0) | (diagmap == 1) | (diagmap == 10) | (diagmap == 100) | (diagmap == 1000))] = 0
-        interpmap[np.where((diagmap == 1111) | (diagmap == 10111) | (diagmap == 11011) | (diagmap == 11101) | (diagmap == 11110) | (diagmap == 11111)) ] = 1
-        interpmap[np.where((diagmap == 111) | (diagmap == 1011) | (diagmap == 1101) | (diagmap == 1110) | (diagmap == 10011) | (diagmap == 10101) | (diagmap == 10110) | (diagmap == 11001) | (diagmap == 11010) | (diagmap == 11100)) ] = 2
-        interpmap[np.where((diagmap == 11000)) ] = 3
-        interpmap[np.where((diagmap == 11) | (diagmap == 101) | (diagmap == 110) | (diagmap == 1001) | (diagmap == 1010) | (diagmap == 1100) | (diagmap == 10000) | (diagmap == 10001) | (diagmap == 10010) | (diagmap == 10100)) ] = 4
-        interpmap[np.where((diagmap == -9999)) ] = 255
-        interpmap_out = driver.Create( interpoutput, shape[1], shape[0], 1, gdal.GDT_Byte)
-        interpmap_out.SetGeoTransform( geo )
-        interpmap_out.SetProjection( proj )
-        interpmap_out.GetRasterBand(1).WriteArray(interpmap)
-        interpmap_out.GetRasterBand(1).SetNoDataValue(255)
-
-
-        # Mask interpreted map using the slope file
-        perslp= perslp_clip.GetRasterBand(1).ReadAsArray()
-        interpmap_copy=interpmap.copy()
-        interpmap[np.where((perslp >= 30) & (interpmap == 2))] = 0
-        interpmap[np.where((perslp >= 20) & (interpmap == 3))] = 0
-        interpmap[np.where((perslp >= 10) & (interpmap == 4))] = 0
-        interpmap[np.where((perslp >= 30) & (interpmap == 1))] = 0
-        interpmap_masked= interpmap * hillshade           
-
-
-        
-        #Cloud and snow masking and outputing masked interpreted layer
-        interpmaskoutput=output_dir2 +  "\\" + directory + "\\" + out_name + "_interp_masked" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
-        interpmap_masked=interpmap_masked.copy()
-        interpmap_masked[np.where((CF == 255))] = 255
-        interpmap_masked[np.where((CF >= 2) & (CF < 255))] = 9
-        interpmap_masked_out = driver.Create( interpmaskoutput, shape[1], shape[0], 1, gdal.GDT_Byte)
-        interpmap_masked_out.SetGeoTransform( geo )
-        interpmap_masked_out.SetProjection( proj )
-        interpmap_masked_out.GetRasterBand(1).WriteArray(interpmap_masked)
-        interpmap_masked_out.GetRasterBand(1).SetNoDataValue(255)
-        del interpmap_masked_out
-        del diagmap
-        del interpmap
-
-
-
-        #Create a full mask layer
-        CF[np.where((CF == 1)) ] = 0
-        perslp[np.where((perslp < 10) & (interpmap_copy == 4)) ] = 0
-        perslp[np.where((perslp < 20) & (interpmap_copy == 3)) ] = 0
-        perslp[np.where((perslp < 30) & (interpmap_copy == 2)) ] = 0
-        perslp[np.where((perslp < 30) & (interpmap_copy == 1)) ] = 0
-        perslp[np.where((perslp >= 10) & (interpmap_copy == 4)) ] = 10
-        perslp[np.where((perslp >= 20) & (interpmap_copy == 3)) ] = 10
-        perslp[np.where((perslp >= 30) & (interpmap_copy == 2)) ] = 10
-        perslp[np.where((perslp >= 30) & (interpmap_copy == 1)) ] = 10
-        perslp[np.where((interpmap_copy == 0)) ] = 0       
-        hillshade[np.where((hillshade == 0)) ] = 20
-        hillshade[np.where((hillshade == 1)) ] = 0
-        MaskLayer=CF + perslp + hillshade
-        MaskLayerOut=output_dir2 +  "\\" + directory + "\\" + out_name + "_MaskLayer" + "_%s.tif"%"_".join(raster.split('_'))[0:length]
-        MaskLayer[np.where((CF == 255))] = 255
-        MaskLayer_Output = driver.Create(MaskLayerOut, shape[1], shape[0], 1, gdal.GDT_Byte)
-        MaskLayer_Output.SetGeoTransform( geo )
-        MaskLayer_Output.SetProjection( proj )
-        MaskLayer_Output.GetRasterBand(1).WriteArray(MaskLayer)
-        MaskLayer_Output.GetRasterBand(1).SetNoDataValue(255)
-        del hillshade_clip, hillshade, MaskLayer, CF, MaskLayerOut, MaskLayer_Output, diagoutput
-        del Metadata, diagmap_out, interpmap_masked, interpmap_out, interpmaskoutput, interpoutput, perslp, perslp_clip           
+        utils.save_output_tiff(inwm, inwm_filename, geo_transform, projection)
+        # save mask as TIF
+        mask_filename = os.path.join(output_subdir, 'MASK.tif')
+        utils.save_output_tiff(mask, mask_filename, geo_transform, projection)
 
 
 
