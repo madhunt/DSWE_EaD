@@ -205,6 +205,45 @@ def mask_interpreted(intr, percent_slope, hillshade, pixel_qa):
 
     return inwm, mask
 
+def clip_global_dem(output_subdir, global_dem, geo_transform, shape):
+    # calculate percent slope
+    n_row, n_col = shape
+
+    #XXX old code had n_row + 1
+    min_x = geo_transform[0]
+    max_y = geo_transform[3]
+    max_x = min_x + geo_transform[1] * n_col
+    min_y = max_y + geo_transform[5] * n_row
+    band_extent = [min_x, max_y, max_x, min_y]
+
+    # clip global DEM to specific scene extent
+    dem_out = os.path.join(output_subdir, 'DEM.tif')
+    dem_clip = gdal.Translate(dem_out, global_dem, projWin=band_extent)
+    return dem_clip
+
+
+def percent_slope(output_subdir, dem_clip, use_zeven_thorne):
+    slope_alg = 'Horn'
+    if use_zeven_thorne:
+        slope_alg = 'ZevenbergenThorne'
+
+    # calculate percent slope
+    slope_out = os.path.join(output_subdir, 'SLOPE.tif')
+    slope = gdal.DEMProcessing(slope_out, dem_clip, 'slope',
+            slopeFormat='percent', alg=slope_alg, format='GTiff')
+    return slope
+
+
+def hillshade(output_subdir, dem_clip):
+    # calculate hillshade
+    shade_out = os.path.join(output_subdir, 'SHADE.tif')
+
+
+    shade = gdal.DEMProcessing(shade_out, dem_clip, 'hillshade',
+            format='GTiff', azimuth=azimuth, altitude=altitude)
+
+    return shade
+
 
 def main(input_dir, output_dir, **kwargs):
     '''
@@ -230,78 +269,66 @@ def main(input_dir, output_dir, **kwargs):
     RETURNS:
     '''
     
-#    # find percent slope file (should be in top dir)
-#    files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
-#    percent_slope_str = ['perslp', 'percent_slope', 'per_slope', 'per_slp']
-#    percent_slope = None
-#    for filename in files:
-#        if any(substr in filename for substr in percent_slope_str):
-#            percent_slope = filename
-#    if percent_slope == None:
-#        raise Exception('No percent slope file found in top directory.')
-#    
-    # make a list of subdirectories (separate HLS or Landsat scenes after pre-processing)
-#    subdirs = [f.path for f in os.scandir(input_dir) if f.is_dir()]
-
-    #XXX above should be tar or HLS files (remove need for separate pre-processing)
-    
-
-
-
-
     # make a list of all files (HLS or Landsat) in main dir
     files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
     for filename in files:
         # make an output dir
-
-        output_subdir = os.path.join(output_dir, output
-
-
-
-        # get bands
-        # do hillshade and percent slope preprocessing
-
-
-
-
-
-
-
-
-    # for each subdir (separate HLS/landsat scene)
-    for input_subdir in subdirs:
-        # make an output subdir
-        output_subdir = os.path.join(output_dir, input_subdir)
+        subdir_name = os.splitext(filename)[0] # get file path with out extension
+        subdir_name = os.split(subdir_name)[1] # get just filename from path
+        output_subdir = os.path.join(output_dir, subdir_name)
         os.makedirs(output_subdir, exist_ok=True)
 
-        # get bands
-        files = [f.path for f in os.scandir(input_subdir) if os.path.isfile(f)]
-        geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = utils.assign_bands(files)
+        # check if file is HDF4 (or tar.gz)
+        with open(filename, 'rb') as f:
+            magic_string = f.read(4)
+        if magic_string == b'\x0e\x03\x13\x01':
+            # this is a HDF4 file
+            all_bands, azimuth, altitude = utils.hdf_bands_solar_geo(filename)
+        else:
+            # this is a tar.gz file
+            all_bands, azimuth, altitude = utils.tar_bands_solar_geo(filename, output_subdir)
+
+        # assign each DSWE band
+        geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = utils.assign_bands(all_bands)
+
+        shape = blue.shape
+
+
+        dem_clip = clip_global_dem(output_subdir, global_dem, geo_transform, shape)
+        slope = percent_slope(output_subdir, dem_clip, use_zeven_thorne)
+        shade = hillshade(output_subdir, dem_clip)
+
+        if include_ps: # save percent slope
+            slope_filename = os.path.join(output_subdir, 'SLOPE.tif')
+            utils.save_output_tiff(slope, slope_filename, geo_transform, projection)
+        if include_hs: # save hillshade
+            shade_filename = os.path.join(output_subdir, 'SHADE.tif')
+            utils.save_output_tiff(shade, shade_filename, geo_transform, projection)
+
 
 
         #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
         # calculate indexes for diagnostic tests
-        mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(blue, 
-                                        green, red, nir, swir1, swir2)
+        mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(blue, green, red,
+                                                            nir, swir1, swir2)
         diag = diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi)
         
-        if include_tests:
-            # save diag as TIF
-            diag_filename = os.path.join(output_subdir, 'DIAG.tif') #XXX better filename -- landsat_id_info_DIAG.TIF
+        if include_tests: # save diagnostic tests
+            diag_filename = os.path.join(output_subdir, 'DIAG.tif')
             utils.save_output_tiff(diag, diag_filename, geo_transform, projection)
 
         # recode to interpreted DSWE
         intr = recode_to_interpreted(diag, shape)
-        # save intr as TIF
+        # save interpreted layer
         intr_filename = os.path.join(output_subdir, 'INTR.tif')
         utils.save_output_tiff(intr, intr_filename, geo_transform, projection)
 
         # filter interpreted band results
-        inwm, mask = mask_interpreted(intr, percent_slope, hillshade, pixel_qa)
-        # save inwm as TIF
+        inwm, mask = mask_interpreted(intr, slope, shade, pixel_qa)
+        # save interpreted layer with mask
         inwm_filename = os.path.join(output_subdir, 'INWM.tif')
         utils.save_output_tiff(inwm, inwm_filename, geo_transform, projection)
-        # save mask as TIF
+        # save mask layer
         mask_filename = os.path.join(output_subdir, 'MASK.tif')
         utils.save_output_tiff(mask, mask_filename, geo_transform, projection)
 

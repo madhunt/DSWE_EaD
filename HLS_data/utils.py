@@ -6,6 +6,31 @@ import gdal
 import json
 import os
 
+def untar(input_file, output_dir):
+    '''
+    Extract tar.gz file of Landsat bands.
+    INPUTS:
+        input_file : str : path to tar.gz file
+        output_dir : str : path to directory to extract files in
+    RETURNS:
+        tar.gz files extracted in output_dir
+    '''
+    # make sure input file exists and is a tar file
+    if os.path.isfile(input_file) and tarfile.is_tarfile(input_file):
+        # create directory for extracted files
+        tar_file = tarfile.open(input_file, mode='r:gz')
+
+        # extract data to subdirectory
+        tar_file.extractall(output_dir)
+        
+        # close tar file
+        tar_file.close()
+
+    # otherwise..
+    elif not os.path.isfile(input_file):
+        raise Exception(f'Input file does not exist: {input_file}')
+    elif not tarfile.is_tarfile(input_file):
+        raise Exception(f'Input file is not a tar file: {input_file}')
 
 
 def file_to_array(filename):
@@ -18,77 +43,6 @@ def file_to_array(filename):
     projection = data.GetProjection()
     array = data.GetRasterBand(1).ReadAsArray()
     return array, geo_transform, projection
-
-
-def assign_bands(files):
-    for filename in files:
-        # assign hillshade and slope
-        #XXX is there any other file from preprocessing that needs to be called in?
-        if 'hillshade' in filename:
-            hillshade = gdal.Open(filename)
-
-        # check if file is HDF4
-        with open(filename, 'rb') as f:
-            magic_string = f.read(4)
-        if magic_string == b'\x0e\x03\x13\x01':
-            # this is a HDF4 file
-            hdf_data = gdal.Open(os.path.abspath(filename))
-            hdf_metadata = hdf_data.GetMetadata_Dict()
-
-            # get bands (subdatasets) from HDF data
-            all_bands = hdf_data.GetSubDatasets()
-
-            # assign each DSWE band
-            for band in all_bands:
-                band_filename = band[0]
-                if 'band02' or 'B02' in filename:
-                    blue, blue_geo, blue_proj = file_to_array(band_filename)
-                if 'band03' or 'B03' in filename:
-                    green, green_geo, green_proj = file_to_array(band_filename)
-                if 'band04' or 'B04' in filename:
-                    red, red_geo, red_proj = file_to_array(band_filename)
-                if 'band05' or 'B8A' in filename:
-                    nir, nir_geo, nir_proj = file_to_array(band_filename)
-                if 'band06' or 'B11' in filename:
-                    swir1, swir1_geo, swir1_proj = file_to_array(band_filename)
-                if 'band07' or 'B12' in filename:
-                    swir2, swir2_geo, swir2_proj = file_to_array(band_filename)
-                if 'Grid:QA' in band_filename:
-                    pixel_qa, qa_geo, qa_proj = file_to_array(band_filename)
-
-        else:
-            # assign landsat bands
-            #XXX this works for landsat 8, but what about other landsat?
-            if 'B2' in filename:
-                blue, blue_geo, blue_proj = file_to_array(filename)
-            if 'B3' in filename:
-                green, green_geo, green_proj = file_to_array(filename)
-            if 'B4' in filename:
-                red, red_geo, red_proj = file_to_array(filename)
-            if 'B5' in filename:
-                nir, nir_geo, nir_proj = file_to_array(filename)
-            if 'B6' in filename:
-                swir1, swir1_geo, swir1_proj = file_to_array(filename)
-            if 'B7' in filename:
-                swir2, swir2_geo, swir2_proj = file_to_array(filename)
-            if 'BQA' in filename:
-                pixel_qa, qa_geo, qa_proj = file_to_array(filename)
-
-
-            # assert all bands have the same geo transform, 
-                # projection, and shape
-            assert (blue_geo == green_geo == red_geo == nir_geo ==
-                        swir1_geo == swir2_geo == qa_geo)
-            assert (blue_proj == green_proj == red_proj == nir_proj ==
-                        swir1_proj == swir2_proj == qa_proj)
-            assert (blue.shape == green.shape == red.shape == nir.shape ==
-                        swir1.shape == swir2.shape == qa.shape)
-
-            # assign geo transform, projection, and shape
-            geo_transform = blue_geo
-            projection = blue_proj
-
-    return geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa
 
 
 def get_thresholds():
@@ -134,6 +88,92 @@ def save_output_tiff(data, filename, geo_transform, projection):
     outdata.FlushCache()
 
 
+def hdf_bands_solar_geo(filename):
+    hdf_data = gdal.Open(os.path.abspath(filename))
+    hdf_metadata = hdf_data.GetMetadata_Dict()
+
+    # get bands (subdatasets) from HDF data
+    bands_info = hdf_data.GetSubDatasets()
+    all_bands = []
+    for band in bands_info:
+        all_bands.append(band[0])
+        
+    # get solar geometry
+    azimuth_search = 'MEAN_SUN_AZIMUTH_ANGLE'
+    zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
+
+    # search metadata
+    azimuth = [val for key, val in hdf_metadata.items() if azimuth_search in key][0]
+    zenith = [val for key, val in hdf_metadata.items() if zenith_search in key][0]
+    # convert strings to floats
+    azimuth = float(azimuth)
+    zenith = float(zenith)
+    altitude = 90.0 - zenith
+
+    return all_bands, azimuth, altitude
+
+
+def tar_bands_solar_geo(filename, output_subdir):
+    utils.untar(filename, output_subdir)
+    all_bands = [f.path for f in os.scandir(output_subdir) if os.path.isfile(f)]
+    # get metadata file
+    for filename in all_bands:
+        if 'MTL' in filename:
+            metadata_file = os.path.join(dirpath, filename)
+
+    azimuth_search = 'SUN_AZIMUTH'
+    altitude_search = 'SUN_ELEVATION'
+
+    # search through all lines of metadata file
+    with open(metadata_file, 'r') as metadata:
+        for line in metadata.readlines():
+            if re.search(azimuth_search, line, re.I):
+                # get rid of whitespace
+                azimuth_line = line.replace(' ', '')
+                # get the value on right side of =
+                azimuth = azimuth_line.split('=')[1]
+                azimuth = float(azimuth)
+
+            if re.search(altitude_search, line, re.I):
+                # get rid of whitespace
+                altitude_line = line.replace(' ', '')
+                # get the value on right side of =
+                altitude = altitude_line.split('=')[1]
+                altitude = float(altitude)
+        return all_bands, azimuth, altitude
+
+
+def assign_bands(all_bands):
+    for filename in all_bands:
+        #TODO make sure these WORK for all cases (and don't assign the wrong bands!!)
+        if 'band02' or 'B02' or 'B2' in filename:
+            blue, blue_geo, blue_proj = file_to_array(filename)
+        if 'band03' or 'B03' or 'B3' in filename:
+            green, green_geo, green_proj = file_to_array(filename)
+        if 'band04' or 'B04' or 'B4' in filename:
+            red, red_geo, red_proj = file_to_array(filename)
+        if 'band05' or 'B8A' or 'B5' in filename:
+            nir, nir_geo, nir_proj = file_to_array(filename)
+        if 'band06' or 'B11' or 'B6' in filename:
+            swir1, swir1_geo, swir1_proj = file_to_array(filename)
+        if 'band07' or 'B12' or 'B7' in filename:
+            swir2, swir2_geo, swir2_proj = file_to_array(filename)
+        if 'Grid:QA' or 'BQA' in filename:
+            pixel_qa, qa_geo, qa_proj = file_to_array(filename)
+
+    # assert all bands have the same geo transform, 
+        # projection, and shape
+    assert (blue_geo == green_geo == red_geo == nir_geo ==
+                swir1_geo == swir2_geo == qa_geo)
+    assert (blue_proj == green_proj == red_proj == nir_proj ==
+                swir1_proj == swir2_proj == qa_proj)
+    assert (blue.shape == green.shape == red.shape == nir.shape ==
+                swir1.shape == swir2.shape == qa.shape)
+
+    # assign geo transform, projection, and shape
+    geo_transform = blue_geo
+    projection = blue_proj
+    return geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa
 
 
 
