@@ -245,7 +245,9 @@ def hillshade(output_subdir, dem_clip):
     return shade
 
 
-def main(input_dir, output_dir, **kwargs):
+def main(input_dir, output_dir,
+            include_tests, include_ps, include_hs,
+            use_zeven_thorne, use_toa, verbose):
     '''
     INPUTS:
         input_dir : str : path to directory with input data
@@ -273,12 +275,14 @@ def main(input_dir, output_dir, **kwargs):
     files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
     for filename in files:
         # make an output dir
-        subdir_name = os.splitext(filename)[0] # get file path with out extension
-        subdir_name = os.split(subdir_name)[1] # get just filename from path
+        subdir_name = os.path.splitext(filename)[0] # get file path with out extension
+        subdir_name = os.path.split(subdir_name)[1] # get just filename from path
         output_subdir = os.path.join(output_dir, subdir_name)
         os.makedirs(output_subdir, exist_ok=True)
 
         # check if file is HDF4 (or tar.gz)
+        if verbose:
+            print('Getting solar data')
         with open(filename, 'rb') as f:
             magic_string = f.read(4)
         if magic_string == b'\x0e\x03\x13\x01':
@@ -289,10 +293,16 @@ def main(input_dir, output_dir, **kwargs):
             all_bands, azimuth, altitude = utils.tar_bands_solar_geo(filename, output_subdir)
 
         # assign each DSWE band
+        if verbose:
+            print('Assigning DSWE bands')
         geo_transform, projection, blue, green, red, nir, swir1, swir2, pixel_qa = utils.assign_bands(all_bands)
 
         shape = blue.shape
 
+        
+        breakpoint()
+        if verbose:
+            print('Clipping global DEM')
 
         dem_clip = clip_global_dem(output_subdir, global_dem, geo_transform, shape)
         slope = percent_slope(output_subdir, dem_clip, use_zeven_thorne)
@@ -372,10 +382,10 @@ if __name__ == '__main__':
             help=('if flagged, Top of Atmosphere (TOA) reflectance is '
             'used; otherwise, defaults to Surface Reflectance'))
 
-    parser.add_argument('--quiet',
-            dest='quiet',
+    parser.add_argument('--verbose',
+            dest='verbose',
             action='store_true',
-            help='if flagged, no print messages are shown')
+            help='if flagged, print messages are shown')
 
     args = parser.parse_args()
     main(**vars(args))

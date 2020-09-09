@@ -5,6 +5,8 @@ Contains utility functions called by main in DSWE code.
 import gdal
 import json
 import os
+import tarfile
+import re
 
 def untar(input_file, output_dir):
     '''
@@ -18,7 +20,7 @@ def untar(input_file, output_dir):
     # make sure input file exists and is a tar file
     if os.path.isfile(input_file) and tarfile.is_tarfile(input_file):
         # create directory for extracted files
-        tar_file = tarfile.open(input_file, mode='r:gz')
+        tar_file = tarfile.open(input_file)#, mode='r:gz')
 
         # extract data to subdirectory
         tar_file.extractall(output_dir)
@@ -34,7 +36,7 @@ def untar(input_file, output_dir):
 
 
 def file_to_array(filename):
-    '''
+    ''' 
     Open file as gdal dataset, get geo transform and
     projection, convert to numpy array.
     '''
@@ -114,19 +116,26 @@ def hdf_bands_solar_geo(filename):
 
 
 def tar_bands_solar_geo(filename, output_subdir):
-    utils.untar(filename, output_subdir)
+    untar(filename, output_subdir)
     all_bands = [f.path for f in os.scandir(output_subdir) if os.path.isfile(f)]
     # get metadata file
     for filename in all_bands:
         if 'MTL' in filename:
-            metadata_file = os.path.join(dirpath, filename)
+            print(filename)
+            metadata_file = os.path.join(output_subdir, filename)
 
+    #XXX make sure this works for landsat 7, too
+    # NOT an xml file, but has MTL in filename
+    # search parameters are:
     azimuth_search = 'SUN_AZIMUTH'
     altitude_search = 'SUN_ELEVATION'
 
     # search through all lines of metadata file
     with open(metadata_file, 'r') as metadata:
         for line in metadata.readlines():
+
+            print(line)
+
             if re.search(azimuth_search, line, re.I):
                 # get rid of whitespace
                 azimuth_line = line.replace(' ', '')
@@ -168,7 +177,7 @@ def assign_bands(all_bands):
     assert (blue_proj == green_proj == red_proj == nir_proj ==
                 swir1_proj == swir2_proj == qa_proj)
     assert (blue.shape == green.shape == red.shape == nir.shape ==
-                swir1.shape == swir2.shape == qa.shape)
+                swir1.shape == swir2.shape == pixel_qa.shape)
 
     # assign geo transform, projection, and shape
     geo_transform = blue_geo
