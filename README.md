@@ -7,3 +7,7 @@ Contains code to interface with the EarthExplorer API, filter downloaded DSWE da
 ## Proportions
 Contains code to calulate the proportions of pixels inundated with open or partial surface water over time, given a set of DSWE data.
 
+## HLS Data
+Rewriting DSWE code to take in HLS data.
+
+
