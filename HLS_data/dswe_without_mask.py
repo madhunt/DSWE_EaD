@@ -12,37 +12,7 @@ import os
 import utils
 
 
-def bands_to_arrays(band_dict):
-
-    def file_to_array(filename):
-        data = gdal.Open(filename)
-        array = data.GetRasterBand(1).ReadAsArray()
-        fill = data.GetRasterBand(1).GetNoDataValue()
-        return array, fill
-    
-    blue, blue_fill = file_to_array(band_dict['blue'])
-    green, green_fill = file_to_array(band_dict['green'])
-    red, red_fill = file_to_array(band_dict['red'])
-    nir, nir_fill = file_to_array(band_dict['nir'])
-    swir1, swir1_fill = file_to_array(band_dict['swir1'])
-    swir2, swir2_fill = file_to_array(band_dict['swir2'])
-    pixel_qa, _ = file_to_array(band_dict['pixel_qa'])
-
-    assert (blue_fill == green_fill == red_fill ==
-                nir_fill == swir1_fill == swir2_fill)
-    fill = blue_fill
-
-    
-    breakpoint()
-    #assert (blue[blue == fill] == green[green == fill] == 
-                #red[red == fill] == nir[nir == fill] ==
-                #swir1[swir1 == fill] == swir2[swir2 == fill])
-    #fill_array = blue[blue == fill]
-
-    return blue, green, red, nir, swir1, swir2, pixel_qa, fill
-
-
-def diagnostic_setup(band_dict):
+def diagnostic_setup(band_dict, fill):
     '''
     Calculate indexes based on non-fill (valid) pixels of
     input bands for diagnostic tests.
@@ -54,8 +24,13 @@ def diagnostic_setup(band_dict):
         Five indexes for non-fill pixel values as numpy
         arrays.
     '''
-
-    blue, green, red, nir, swir1, swir2, _, fill = bands_to_arrays(band_dict)
+    # get bands as np arrays
+    blue = utils.file_to_array(band_dict['blue'])
+    green = utils.file_to_array(band_dict['green'])
+    red = utils.file_to_array(band_dict['red'])
+    nir = utils.file_to_array(band_dict['nir'])
+    swir1 = utils.file_to_array(band_dict['swir1'])
+    swir2 = utils.file_to_array(band_dict['swir2'])
 
     # Modified Normalized Difference Wetness Index
     mndwi = (green - swir1) / (green + swir1)
@@ -77,10 +52,10 @@ def diagnostic_setup(band_dict):
     ndvi = (nir - red) / (nir + red)
     ndvi[(nir == fill) | (red == fill)] = fill
 
-    return mndwi, mbsrv, mbsrn, awesh, ndvi, fill
+    return mndwi, mbsrv, mbsrn, awesh, ndvi
 
 
-def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
+def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
     '''
     Perform five diagnostic tests on indexes calculated from the
     input bands.
@@ -106,6 +81,12 @@ def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
     pswt_2_swir1 = thresholds_dict['PSWT_2_SWIR1']
     pswt_2_swir2 = thresholds_dict['PSWT_2_SWIR2']
 
+    # get bands as np arrays
+    blue = utils.file_to_array(band_dict['blue'])
+    nir = utils.file_to_array(band_dict['nir'])
+    swir1 = utils.file_to_array(band_dict['swir1'])
+    swir2 = utils.file_to_array(band_dict['swir2'])
+    
     # we've already asserted that shapes are the same, so this is safe
     shape = mndwi.shape
 
@@ -142,12 +123,9 @@ def diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi):
     # stack the results together (each pixel has 5 corresponding bools)
     diag = np.stack((test1, test2, test3, test4, test5), axis=-1)
     return diag
-#XXX note: diag currently has no indication if the tests
-# occured in a no-data pixel. not sure how to get 
-# around this for now
 
 
-def recode_to_interpreted(diag):
+def recode_to_interpreted(diag, fill_array):
     '''
     Recode results of five diagnostic tests to interpreted class
     DSWE band.
@@ -187,7 +165,7 @@ def recode_to_interpreted(diag):
     # potential wetland : only first two tests passed
     # delete all but first 2 tests for each pixel and sum them
     sum_first_two = np.delete(diag, np.s_[2:], -1)
-    sum_first_two = np.sum(sum_1_2, axis=-1)
+    sum_first_two = np.sum(sum_first_two, axis=-1)
     intr[(sum_first_two == 2) & (sum_passed == 2)] = 3
 
     # low confidence water or wetland : 2 total tests passed 
@@ -223,13 +201,13 @@ def main(input_dir, output_dir, include_tests, verbose):
     # make a list of all files (HLS or Landsat) in main dir
     files = [f.path for f in os.scandir(input_dir) if os.path.isfile(f)]
 
-
     for i, filename in enumerate(files):
         if verbose:
             print(f'Processing file {i+1} of {len(files)}')
-        # make an output dir
-        subdir_name = os.path.splitext(filename)[0] # file path without extension
-        subdir_name = os.path.split(subdir_name)[1] # filename from path
+
+        # create output subdirectory (same name as input file)
+        subdir_name = os.path.splitext(filename)[0] # remove extension
+        subdir_name = os.path.split(subdir_name)[1] # remove path
         output_subdir = os.path.join(output_dir, subdir_name)
         os.makedirs(output_subdir, exist_ok=True)
 
@@ -243,46 +221,54 @@ def main(input_dir, output_dir, include_tests, verbose):
             # this is a tar.gz file
             all_bands = utils.tar_bands(filename, output_subdir)
 
-        # assign each DSWE band
         if verbose:
             print('Assigning DSWE bands')
+
+        # assign each DSWE band
         band_dict, geo_transform, projection = utils.assign_bands(all_bands)
-        #shape = blue.shape
 
-        
-        print('look at band_dict, geotrans, and proj')
-        breakpoint()
-
-
-        #TODO MAKE SURE 255 PIXELS ARE ACCOUNTED FOR IN THE FOLLOWING FUNCS
         if verbose:
             print('Performing diagnostic tests')
-        # calculate indexes for diagnostic tests
-        mndwi, mbsrv, mbsrn, awesh, ndvi, fill_array = diagnostic_setup(band_dict)
-        diag = diagnostic_tests(mndwi, mbsrv, mbsrn, awesh, ndvi)
-
-        print('look at diag and fill_array')
-        breakpoint()
         
+        # get no-data (fill) value of bands and make fill array for all bands
+        fill, fill_array = utils.get_fill_array(band_dict)
+
+        # calculate indexes for diagnostic tests
+        mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(band_dict, fill)
+
+        diag = diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi)
 
         if include_tests: # save diagnostic tests
             if verbose:
                 print('Saving diagnostic layer')
+            # since diag tests are calculated as 3D np array of bools,
+            # have to convert bools into int to save as geotiff
+            # eg. [True, False, True, False, False] --> 10100
+            # (note: does not preserve leading zeros)
+            rows, cols, _ = diag.shape
+            diag_list = diag.astype(int).tolist()
+            diag_int = [sum(d*10**i for i, d in enumerate(lst[::-1])) for row in diag_list for lst in row]
+            diag_save = np.reshape(np.array(diag_int), (rows, cols))
+
+            # account for non-data (fill) pixels
+            diag_save[fill_array == True] = 255
             diag_filename = os.path.join(output_subdir, 'DIAG.tif')
-            utils.save_output_tiff(diag, diag_filename, geo_transform, projection)
+            utils.save_output_tiff(diag_save, diag_filename, geo_transform, projection)
 
         if verbose:
             print('Recoding diagnostic layer to interpreted DSWE')
+
         # recode to interpreted DSWE
         intr = recode_to_interpreted(diag, fill_array)
         if verbose:
             print('Saving interpreted layer')
+
         # save interpreted layer
         intr_filename = os.path.join(output_subdir, 'INTR.tif')
         utils.save_output_tiff(intr, intr_filename, geo_transform, projection)
 
-        if verbose:
-            print('Done')
+    if verbose:
+        print('Done')
 
 
 if __name__ == '__main__':

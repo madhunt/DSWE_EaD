@@ -55,7 +55,8 @@ def get_thresholds():
     '''
     # get path of this file
     script_path = os.path.realpath(__file__)
-    thresholds_path = os.path.join(script_path, 'thresholds.json')
+    path = os.path.split(script_path)[0] # get path to script dir
+    thresholds_path = os.path.join(path, 'thresholds.json')
 
     # make sure the thresholds.json file exists
     if os.path.isfile(thresholds_path):
@@ -80,7 +81,7 @@ def save_output_tiff(data, filename, geo_transform, projection):
     RETURNS:
         output file saved as filename
     '''
-    shape = array.shape
+    shape = data.shape
     driver = gdal.GetDriverByName('GTiff')
     outdata = driver.Create(filename, shape[1], shape[0], 1, gdal.GDT_Byte)
     outdata.SetGeoTransform(geo_transform)
@@ -148,6 +149,40 @@ def assign_bands(all_bands):
     return band_dict, geo_transform, projection
 
 
+def file_to_array(filename):
+    data = gdal.Open(filename)
+    array = data.GetRasterBand(1).ReadAsArray()
+    return array
 
 
+def fill_value(filename):
+    data = gdal.Open(filename)
+    fill = data.GetRasterBand(1).GetNoDataValue()
+    return fill
+
+
+def get_fill_array(band_dict):
+    blue = file_to_array(band_dict['blue'])
+    green = file_to_array(band_dict['green'])
+    red = file_to_array(band_dict['red'])
+    nir = file_to_array(band_dict['nir'])
+    swir1 = file_to_array(band_dict['swir1'])
+    swir2 = file_to_array(band_dict['swir2'])
+
+    blue_fill = fill_value(band_dict['blue'])
+    green_fill = fill_value(band_dict['green'])
+    red_fill = fill_value(band_dict['red'])
+    nir_fill = fill_value(band_dict['nir'])
+    swir1_fill = fill_value(band_dict['swir1'])
+    swir2_fill = fill_value(band_dict['swir2'])
+
+    assert (blue_fill == green_fill == red_fill ==
+                nir_fill == swir1_fill == swir2_fill)
+    fill = blue_fill
+
+    fill_array = np.full(blue.shape, False, dtype=bool)
+    fill_array[(blue == fill) | (green == fill) | (red == fill) |
+                (nir == fill) | (swir1 == fill) | (swir2 == fill)] = True
+
+    return fill, fill_array
 
