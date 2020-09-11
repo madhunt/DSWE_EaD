@@ -16,8 +16,8 @@ import argparse
 import gdal
 import numpy as np
 import os
+import tarfile
 import utils
-
 
 def diagnostic_setup(band_dict, fill):
     '''
@@ -26,7 +26,7 @@ def diagnostic_setup(band_dict, fill):
     INPUTS:
         band_dict : dict : dictionary with keys corresponding
             to the unscaled surface reflectance bands (blue,
-            green, red, NIR, SWIR1, and SWIR2) and values as
+            green, red, nir, swir1, and swir2) and values as
             paths to those bands or files
         fill : int : value of non-data (fill) pixels in the
             above bands
@@ -76,7 +76,7 @@ def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
     INPUTS:
         band_dict : dict : dictionary with keys corresponding
             to the unscaled surface reflectance bands (blue,
-            green, red, NIR, SWIR1, and SWIR2) and values as
+            green, red, nir, swir1, and swir2) and values as
             paths to those bands or files
         mndwi : numpy array : Modified Normalized Difference
             Wetness Index 
@@ -253,9 +253,11 @@ def main(input_dir, output_dir, include_tests, verbose):
         if magic_string == b'\x0e\x03\x13\x01':
             # this is a HDF4 file
             all_bands = utils.hdf_bands(filename)
-        else:
-            # this is a tar.gz file
+        elif tarfile.is_tarfile(filename):
+            # this is a tar file
             all_bands = utils.tar_bands(filename, output_subdir)
+        else:
+            raise Exception('Unknown file format. Make sure input files are either HDF4 or TAR files.')
 
         if verbose:
             print('Assigning DSWE bands')
