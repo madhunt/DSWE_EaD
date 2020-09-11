@@ -4,9 +4,9 @@ Contains utility functions called by main in DSWE code.
 
 import gdal
 import json
+import numpy as np
 import os
 import tarfile
-import re
 
 def untar(input_file, output_dir):
     '''
