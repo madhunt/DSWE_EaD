@@ -76,25 +76,25 @@ def assign_bands(all_bands):
     '''
     band_dict = {}
     for filename in all_bands:
-        if ('band02' or 'B02' or 'B2') in filename:
+        if ('band02' in filename) or ('B02' in filename) or ('B2' in filename):
             band_dict['blue'] = filename
             blue_geo, blue_proj = get_geo_info(filename)
-        if ('band03' or 'B03' or 'B3') in filename:
+        if ('band03' in filename) or ('B03' in filename) or ('B3' in filename):
             band_dict['green'] = filename
             green_geo, green_proj = get_geo_info(filename)
-        if ('band04' or 'B04' or 'B4') in filename:
+        if ('band04' in filename) or ('B04' in filename) or ('B4' in filename):
             band_dict['red'] = filename
             red_geo, red_proj = get_geo_info(filename)
-        if ('band05' or 'B8A' or 'B5') in filename:
+        if ('band05' in filename) or ('B8A' in filename) or ('B5' in filename):
             band_dict['nir'] = filename
             nir_geo, nir_proj = get_geo_info(filename)
-        if ('band06' or 'B11' or 'B6') in filename:
+        if ('band06' in filename) or ('B11' in filename) or ('B6' in filename):
             band_dict['swir1'] = filename
             swir1_geo, swir1_proj = get_geo_info(filename)
-        if ('band07' or 'B12' or 'B7') in filename:
+        if ('band07' in filename) or ('B12' in filename) or ('B7' in filename):
             band_dict['swir2'] = filename
             swir2_geo, swir2_proj = get_geo_info(filename)
-        if ('Grid:QA' or 'BQA') in filename:
+        if ('Grid:QA' in filename) or ('BQA' in filename):
             band_dict['pixel_qa'] = filename
             qa_geo, qa_proj = get_geo_info(filename)
 
