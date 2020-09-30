@@ -6,7 +6,7 @@ Large parts of this code are based on:
 '''
 import json
 import requests
-from utils import spatial_filter, temporal_filter
+from utils_api import spatial_filter, temporal_filter
 
 def json_request_format(**kwargs):
     return {'jsonRequest': json.dumps(kwargs)}

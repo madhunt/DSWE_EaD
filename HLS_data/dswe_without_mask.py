@@ -17,7 +17,7 @@ import gdal
 import numpy as np
 import os
 import tarfile
-import utils
+import utils_dswe as utils
 
 def diagnostic_setup(band_dict, fill):
     '''

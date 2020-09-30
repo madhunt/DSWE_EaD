@@ -3,7 +3,7 @@ Main code to calculate proportions.
 '''
 import argparse
 import os
-import utils
+import utils_proportions as utils
 import time_periods as tp
 
 def main(main_dir, dswe_layer, time_period, multiyear=None):
