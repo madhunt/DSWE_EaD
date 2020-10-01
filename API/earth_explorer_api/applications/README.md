@@ -1,6 +1,6 @@
 # Applications for the EarthExplorer API
 
-These applications use the EarthExplorer API, with an option to use each in the command line or call them in a script.
+This folder contains applications to use the EarthExplorer API, with an option to use each in the command line or call them in a script.
 
 Future applications can be added here as needed.
 
@@ -40,7 +40,7 @@ usage: download_search.py [-h] [--download_code DOWNLOAD_CODE]
     Note: If the dataset name is unknown, it can be found using search\_datasets.py.
 
 ## search\_datasets.py
-Search available datasets on EarthExplorer. By passing no parameters, all available datasets are returned.
+Search available datasets on EarthExplorer. By passing no parameters, all available datasets are returned. This can be used to find the dataset name to pass into download\_search.py.
 ```
 usage: search_datasets.py [-h] [--dataset DATASET] [--public]
                           [--lat LATITUDE] [--long LONGITUDE]
@@ -49,11 +49,11 @@ usage: search_datasets.py [-h] [--dataset DATASET] [--public]
 ```
 - *Example Usage*
 
-    To search for all publically-available datasets that contain landsat data between 1970 and 1980, the following command would be run:
+    To search for all publicly-available datasets that contain Landsat data between 1970 and 1980, the following command would be run:
     ```
     python3 search_datasets.py --dataset 'landsat' --public --start '1970-01-01' --end '1981-01-01'
     ```
-    This should return and print to the screen information about three datasets: ORTHO_MSS_SCENE, MSS_FILM, and RBV_FILM.
+    As of Sept 2020, this should return and print to the screen information about three datasets: ORTHO_MSS_SCENE, MSS_FILM, and RBV_FILM.
 
 ## search.py
 Search for scenes using the EarthExplorer API.
@@ -74,7 +74,7 @@ usage: search.py [-h] [--download_code DOWNLOAD_CODE]
     ```
     python3 search.py --lat 35.4441 --long -83.7279 --months [9,10,11] --start '1990-01-01' --end '2001-01-01' --max_cloud 50 --max_results 50 'SP_TILE_DSWE'
     ```
-    This should return and print to the screen 43 datasets that meet this criteria.
+    As of Sept 2020, this should return and print to the screen 43 datasets that meet this criteria.
 
     Note: If the dataset name is unknown, it can be found using search\_datasets.py.
 

@@ -5,7 +5,7 @@ import getpass
 import os
 import sys
 sys.path.insert(1, '../')
-import earthExplorerAPI as eeapi
+import earth_explorer_api as eeapi
 
 def login():
     '''
