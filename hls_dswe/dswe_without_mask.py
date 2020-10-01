@@ -289,7 +289,7 @@ def main(input_dir, output_dir, include_tests, verbose):
             diag_save[fill_array == True] = 255
 
             print(output_subdir)
-            diag_filename = os.path.join(output_subdir, 'DIAG.tif')
+            diag_filename = os.path.join(output_subdir, subdir_name + '_DIAG.tif')
             utils.save_output_tiff(diag_save, diag_filename,
                                         geo_transform, projection)
 
@@ -302,7 +302,7 @@ def main(input_dir, output_dir, include_tests, verbose):
         if verbose:
             print('Saving interpreted layer')
         # save interpreted layer
-        intr_filename = os.path.join(output_subdir, 'INTR.tif')
+        intr_filename = os.path.join(output_subdir, subdir_name + '_INTR.tif')
         utils.save_output_tiff(intr, intr_filename,
                                     geo_transform, projection)
 
