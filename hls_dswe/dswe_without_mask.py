@@ -255,7 +255,9 @@ def main(input_dir, output_dir, include_tests, verbose):
             all_bands = utils.hdf_bands(filename)
         elif tarfile.is_tarfile(filename):
             # this is a tar file
-            all_bands = utils.tar_bands(filename, output_subdir)
+            unpack_subdir = os.path.join(input_dir, subdir_name)
+            os.makedirs(unpack_subdir, exist_ok=True)
+            all_bands = utils.tar_bands(filename, unpack_subdir)
         else:
             raise Exception('Unknown file format. Make sure input files are either HDF4 or TAR files.')
 

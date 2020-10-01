@@ -94,7 +94,7 @@ def assign_bands(all_bands):
         if ('band07' in filename) or ('B12' in filename) or ('B7' in filename):
             band_dict['swir2'] = filename
             swir2_geo, swir2_proj = get_geo_info(filename)
-        if ('Grid:QA' in filename) or ('BQA' in filename):
+        if ('Grid:QA' in filename) or ('BQA' in filename) or ('PIXELQA' in filename):
             band_dict['pixel_qa'] = filename
             qa_geo, qa_proj = get_geo_info(filename)
 

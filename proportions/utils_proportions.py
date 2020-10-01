@@ -17,11 +17,13 @@ def get_file_date(dirpath, filename):
     Gets date that file data was collected;
     uses convention of scene_id (entity_id) or HLS (version 1.4)
     as filename.
-    Note: date was taken from filename in order to sort data
-        by date before rasters were opened 
-        (and metadata could be read)
+    Note: date must be obtained from filename because date is not
+    stored in DSWE metadata!
     '''
-    scene_pattern = re.compile('L[C,E,T,M]0\d_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
+    # this regex catches both landsat scene IDs and ARD scene IDs as filenames
+        # eg. both LT05_CU_029008_19990127_20190120_C01_V01_INTR.tif and 
+    scene_pattern = re.compile('L[C,E,T,M]0\d_CU_\d{6}_\d{8}_\d{8}_C01_V01_.*[A-Z]{4}\.tif')
+    # this regext catches HLS filenames
     hls_pattern = re.compile('HLS.[L,S][1,3]0.T\w{5}.\d{7}.v\d.\d_[A-Z]{4}.tif')
 
     if scene_pattern.match(filename):
