@@ -288,7 +288,6 @@ def main(input_dir, output_dir, include_tests, verbose):
             # account for non-data (fill) pixels
             diag_save[fill_array == True] = 255
 
-            print(output_subdir)
             diag_filename = os.path.join(output_subdir, subdir_name + '_DIAG.tif')
             utils.save_output_tiff(diag_save, diag_filename,
                                         geo_transform, projection)

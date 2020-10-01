@@ -12,21 +12,30 @@ from dateutil.rrule import rrule, MONTHLY
 from dateutil.relativedelta import relativedelta
 
 
-def get_file_date(filename):
+def get_file_date(dirpath, filename):
     '''
     Gets date that file data was collected;
-    uses convention of scene_id (entity_id) as filename.
+    uses convention of scene_id (entity_id) or HLS (version 1.4)
+    as filename.
     Note: date was taken from filename in order to sort data
         by date before rasters were opened 
         (and metadata could be read)
     '''
-    pattern = re.compile('L[C,E,T,M]0\d_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
-    assert pattern.match(filename), 'Filename does not match expected Entity ID format.'
+    scene_pattern = re.compile('L[C,E,T,M]0\d_CU_\d{6}_\d{8}_\d{8}_C01_V01_[A-Z]{4}.tif')
+    hls_pattern = re.compile('HLS.[L,S][1,3]0.T\w{5}.\d{7}.v\d.\d_[A-Z]{4}.tif')
 
-    file_year = int(filename[15:19])
-    file_month = int(filename[19:21])
-    file_day = int(filename[21:23])
-    file_date = datetime.date(file_year, file_month, file_day)
+    if scene_pattern.match(filename):
+        file_year = int(filename[15:19])
+        file_month = int(filename[19:21])
+        file_day = int(filename[21:23])
+        file_date = datetime.date(file_year, file_month, file_day)
+    elif hls_pattern.match(filename):
+        file_year = int(filename[15:19])
+        file_year_day = int(filename[20:22])
+        file_date = datetime.datetime(file_year, 1, 1) + datetime.timedelta(file_year_day - 1)
+    else:
+        raise Exception('Filename does not match expected Scene ID or HLS format.')
+
     return file_date
 
 
@@ -50,7 +59,7 @@ def get_files(main_dir, dswe_layer):
             # if the file is the layer of interest
             if dswe_layer in filename:
                 all_files.append(os.path.join(dirpath, filename))
-                file_date = get_file_date(filename)
+                file_date = get_file_date(dirpath, filename)
                 all_dates.append(file_date)
     return all_files, all_dates
 
