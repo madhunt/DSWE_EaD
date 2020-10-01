@@ -9,34 +9,34 @@ The *proportions\_mosaic.py* code also supports stacks of DSWE tiles from differ
 
 
 ## Code explanation
-- **proportions.py**: this is the main code to calculate proportions for one stack of DSWE tiles.
+- **proportions.py**: Main code to calculate proportions for one stack of DSWE tiles. It can be used in the command line with a user-supplied input directory path (containing un-tared Landsat or HLS data, with any subdirectory structure), DSWE layer to use in calculations (INWM or INTR), and time period to process files by.
 
-    ```
-    usage: proportions.py [-h]
-                        [-y NUM_YEARS]
-                        DIRECTORY_PATH
-                        {INWM,INTR}
-                        {year,month,month_across_years,season,multiyear}
-    ```
+```
+usage: proportions.py [-h]
+                    [-y NUM_YEARS]
+                    DIRECTORY_PATH
+                    {INWM,INTR}
+                    {year,month,month_across_years,season,multiyear}
+```
 
-- **proportions\_mosaic.py**: this is the main code to calculate proportions over a large study area, consisting of multiple DSWE tiles. The usage is the same as *proportions.py*, but the directory should contain data from all tiles.
+- **proportions\_mosaic.py**: Main code to calculate proportions over a large study area, consisting of multiple DSWE tiles. The usage is the same as *proportions.py*, but the directory should contain data from all tiles (the directory and subdirectory structure does not matter in this case, either).
 
-    ```
-    usage: proportions_mosaic.py [-h]
-                           [-y NUM_YEARS]
-                           DIRECTORY_PATH
-                           {INWM,INTR}
-                           {year,month,month_across_years,season,multiyear}
-    ```
+```
+usage: proportions_mosaic.py [-h]
+                       [-y NUM_YEARS]
+                       DIRECTORY_PATH
+                       {INWM,INTR}
+                       {year,month,month_across_years,season,multiyear}
+```
 
-- **time\_periods.py**: this file contains functions to group the files based on the time period of interest, and then process the data.
+- **time\_periods.py**: This file contains functions to group the files based on the time period of interest, and then process the data.
 
-- **utils.py**: this file contains all other utility functions the code uses.
+- **utils\_proportions.py**: This file contains all other utility functions the code uses.
 
 
 ## Example usage
 ### By month
-To run this code for INWM data stored in /path/to/DSWE/data, processing data by month, the following command would be run:
+To run code for DSWE INWM data stored in /path/to/DSWE/data, processing data by month, the following command would be run:
 
 ```
 python3 proportions.py /path/to/DSWE/data 'INWM' 'month'
@@ -49,21 +49,20 @@ python3 proportions_mosaic.py /path/to/DSWE/data 'INWM' 'month'
 ```
 
 ### By semi-decade
-To run this code for INWM data stored in /path/to/DSWE/data, processing data by semi-decade (or groups of 5 years), the following command would be run:
+To run this code for DSWE INTR data stored in /path/to/DSWE/data, processing data by semi-decade (or groups of 5 years), the following command would be run:
 
 ```
-python3 proportions.py -y 5 /path/to/DSWE/data 'INWM' 'multiyear'
+python3 proportions.py -y 5 /path/to/DSWE/data 'INTR' 'multiyear'
 ```
 
 Once again, if /path/to/DSWE/data contains tiles at different locations across a larger study area, the following command would be used:
 
 ```
-python3 proportions_mosaic.py -y 5 /path/to/DSWE/data 'INWM' 'multiyear'
+python3 proportions_mosaic.py -y 5 /path/to/DSWE/data 'INTR' 'multiyear'
 ```
 
 ## Recolor output images
 The output images from *proportions.py* and *proportions\_mosaic.py* will be greyscale images with pixels from 0 to 100 (and no data as 255). The bash script in *recolor\_output* can be used to recolor them if desired.
-
 
 ## References
 - [DSWE User Guide](https://www.usgs.gov/land-resources/nli/landsat/landsat-dynamic-surface-water-extent?qt-science_support_page_related_con=0#qt-science_support_page_related_con)

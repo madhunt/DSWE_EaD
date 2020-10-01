@@ -4,7 +4,7 @@ Functions to sort files by time period and process data.
 import datetime
 import numpy as np
 from dateutil.rrule import rrule, MONTHLY
-import utils
+import utils_proportions
 
 def process_files(current_files, prop_dir, max_extent, time_str):
     '''
