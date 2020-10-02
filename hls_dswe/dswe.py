@@ -2,11 +2,8 @@
 DSWE algorithm implemented to support either Harmonized Landsat
 Sentinel (HLS) or Landsat data as inputs.
 
-This version does not calculate the masked layers, and does
-not rely on a global DEM as input.
-
 The input directory for this code should have HLS data as HDF4
-files, or Landsat data as tar files. The output directory does
+files, or Landsat data as TAR files. The output directory does
 not have to exist, it will be created by the code.
 
 Also assumes that a threshold.json file is in the same
@@ -18,6 +15,44 @@ import numpy as np
 import os
 import tarfile
 import utils_dswe as utils
+
+def clip_dem(dem_path, output_dir, geo_transform, shape):
+    '''
+    Clip user-provided DEM to extent of study area.
+    '''
+    dem_user = gdal.Open(dem_path)
+    n_row, n_col = shape
+    
+    min_x = geo_transform[0]
+    max_y = geo_transform[3]
+    max_x = min_x + geo_transform[1] * n_col
+    min_y = max_y + geo_transform[5] * n_row
+    band_extent = [min_x, max_y, max_x, min_y]
+    
+    # clip DEM to specific scene extent
+    dem_out = os.path.join(output_dir, 'DEM.tif')
+    dem_clip = gdal.Translate(dem_out, dem_user, projWin=band_extent)
+    if not dem_clip:
+        raise Exception('The DEM provided does not cover the extent of the study area. See https://github.com/OSGeo/gdal/issues/2601 and https://gis.stackexchange.com/questions/233094/cropping-a-large-geotiff-in-qgis.')
+
+    return dem_clip, dem_out
+
+
+def percent_slope(dem_clip, output_subdir, use_zeven_thorne):
+    '''
+    Calculates percent slope using Horn's algorithm (default), 
+    or Zevenbergen and Thorne's algorithm (optional).
+    '''
+    #TODO test this function with proper data
+    slope_alg = 'Horn'
+    if use_zeven_thorne:
+        slope_alg = 'ZevenbergenThorne'
+    
+    slope_out = os.path.join(output_subdir, 'SLOPE.tif')
+    slope = gdal.DEMProcessing(slope_out, dem_clip, 'slope',
+            slopeFormat='percent', alg=slope_alg, format='GTiff')
+    return slope
+
 
 def diagnostic_setup(band_dict, fill):
     '''
@@ -283,12 +318,11 @@ def hillshade(dem_clip, output_subdir, altitude, azimuth):
     return shade
 
 
-def main(input_dir, output_dir, include_tests, verbose):
+def main(input_dir, output_dir, dem_path, include_tests, 
+            include_ps, include_hs, use_zeven_thorne, verbose):
     '''
     DSWE algorithm implemented to support either Harmonized
     Landsat Sentinel (HLS) or Landsat data as inputs.
-    This version does not calculate the masked layers, and
-    does not rely on a global DEM as input.
     INPUTS:
         input_dir : str : path to directory with input data,
             containing either HLS data in HDF4 format, or
@@ -322,7 +356,7 @@ def main(input_dir, output_dir, include_tests, verbose):
             magic_string = f.read(4)
         if magic_string == b'\x0e\x03\x13\x01':
             # this is a HDF4 file
-            all_bands = utils.hdf_bands(filename)
+            all_bands, metadata = utils.hdf_bands(filename)
             altitude, azimuth = utils.hdf_solar(metadata)
         elif tarfile.is_tarfile(filename):
             # this is a tar file
@@ -362,26 +396,39 @@ def main(input_dir, output_dir, include_tests, verbose):
         utils.save_output_tiff(intr, intr_filename,
                                     geo_transform, projection)
 
+        # only calculate masked layers if DEM is provided by user
+        if dem_path:
+            if i == 0:
+                log('Clipping DEM to study area')
+                shape = fill_array.shape
+                dem_clip, dem_out = clip_dem(dem_path, output_dir, geo_transform, shape)
+            else:
+                dem_clip = gdal.Open(dem_out)
 
-        ## only do if DEM is provided by user
+            log('Calculating percent slope')
+            slope = percent_slope(dem_clip, output_subdir, use_zeven_thorne)
+        if include_ps:
+            log('Saving percent slope')
+            slope_filename = os.path.join(output_subdir, subdir_name + '_SLOPE.tif')
+            utils.save_output_tiff(slope, slope_filename, geo_transform, projection)
 
-        log('Calculating hillshade')
-        shade = hillshade(dem_clip, output_subdir, altitude, azimuth)
-        if include_hs:
-            log('Saveing hillshade')
-            shade_filename = os.path.join(output_subdir, subdir_name + '_SHADE.tif')
-            utils.save_output_tiff(shade, shade_filename, geo_transform, projection)
+            log('Calculating hillshade')
+            shade = hillshade(dem_clip, output_subdir, altitude, azimuth)
+            if include_hs:
+                log('Saving hillshade')
+                shade_filename = os.path.join(output_subdir, subdir_name + '_SHADE.tif')
+                utils.save_output_tiff(shade, shade_filename, geo_transform, projection)
 
-        log('Calculating mask and masked interpreted layer')
-        inwm, mask = mask_interpreted(intr, slope, shade, band_dict)
+            log('Calculating mask and masked interpreted layer')
+            inwm, mask = mask_interpreted(intr, slope, shade, band_dict)
 
-        log('Saving interpreted layer with mask')
-        inwm_filename = os.path.join(output_subdir, subdir_name + '_INWM.tif')
-        utils.save_output_tiff(inwm, inwm_filename, geo_transform, projection)
+            log('Saving masked interpreted layer')
+            inwm_filename = os.path.join(output_subdir, subdir_name + '_INWM.tif')
+            utils.save_output_tiff(inwm, inwm_filename, geo_transform, projection)
 
-        log('Saving mask')
-        mask_filename = os.path.join(output_subdir, subdir_name + '_MASK.tif')
-        utils.save_output_tiff(mask, mask_filename, geo_transform, projection)
+            log('Saving mask')
+            mask_filename = os.path.join(output_subdir, subdir_name + '_MASK.tif')
+            utils.save_output_tiff(mask, mask_filename, geo_transform, projection)
     log('Done')
 
 verbose = False
@@ -392,7 +439,7 @@ def log(print_str):
 
 
 if __name__ == '__main__':
-parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
                 description=('DSWE algorithm implemented to '
                 'support either Harmonized Landsat Sentinel '
                 '(HLS) or Landsat data as inputs. If no DEM is '
@@ -409,10 +456,11 @@ parser = argparse.ArgumentParser(
             type=str,
             help='output directory to save files')
     parser.add_argument('--dem',
-            metavar='PATH_TO_DEM',
+            dest='dem_path',
             type=str,
-            help='path to DEM, which is larger than and covers the study area; if not supplied, masked DSWE layers will not be calculated')
-    # options from documentation
+            help=('path to DEM, which must be larger than and '
+            'cover the study area; if not supplied, masked '
+            'DSWE layers will not be calculated'))
     parser.add_argument('--include_tests',
             dest='include_tests',
             action='store_true',

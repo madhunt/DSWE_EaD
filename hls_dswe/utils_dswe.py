@@ -14,11 +14,37 @@ def hdf_bands(filename):
         filename : str : path to HDF4 file
     RETURNS:
         all_bands : list of str : list of paths to each band
+        metadata : dict : dictionary of metadata from HLS file
     '''
-    hdf_data = gdal.Open(os.path.abspath(filename))
-    bands_info = hdf_data.GetSubDatasets()
+    data = gdal.Open(os.path.abspath(filename))
+    metadata = data.GetMetadata_Dict()
+    bands_info = data.GetSubDatasets()
     all_bands = [band[0] for band in bands_info]
-    return all_bands
+    return all_bands, metadata
+def hdf_solar(metadata):
+    '''
+    Gets solar azimuth and altitude from HLS file metadata.
+    INPUTS:
+        metadata : dict : dictionary of metadata from HLS file
+    RETURNS:
+        azimuth : float : solar azimuth in degrees
+        altitude : float : solar altitude in degrees
+    '''
+    # search strings
+    azimuth_search = 'MEAN_SUN_AZIMUTH_ANGLE'
+    zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
+    
+    # search metadata
+    azimuth = [val for key, val in metadata.items()
+                    if azimuth_search in key][0]
+    zenith = [val for key, val in metadata.items()
+                    if zenith_search in key][0]
+    
+    # convert from strings to floats
+    azimuth = float(azimuth)
+    zenith = float(zenith)
+    altitude = 90.0 - zenith
+    return azimuth, altitude
 
 
 def tar_bands(filename, unpack_subdir):
