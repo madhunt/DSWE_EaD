@@ -32,7 +32,7 @@ def diagnostic_setup(band_dict, fill):
             above bands
     RETURNS:
         mndwi : numpy array : Modified Normalized Difference
-            Wetness Index 
+            Wetness Index
         mbsrv : numpy array : Multi-band Spectral Relationship
             Visible
         mbsrn : numpy array : Multi-band Spectral Relationship
@@ -52,24 +52,24 @@ def diagnostic_setup(band_dict, fill):
     # calculate indexes and account for non-data (fill) values
     mndwi = (green - swir1) / (green + swir1)
     mndwi[(green == fill) | (swir1 == fill)] = fill
-    
+
     mbsrv = green + red
     mbsrv[(green == fill) | (red == fill)] = fill
-    
+
     mbsrn = nir + swir1
     mbsrn[(nir == fill) | (swir1 == fill)] = fill
-    
+
     awesh = blue + (2.5 * green) - (1.5 * mbsrn) - (0.25 * swir2)
     awesh[(blue == fill) | (green == fill) |
             (mbsrn == fill) | (swir2 == fill)] = fill
-    
+
     ndvi = (nir - red) / (nir + red)
     ndvi[(nir == fill) | (red == fill)] = fill
 
     return mndwi, mbsrv, mbsrn, awesh, ndvi
 
 
-def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
+def diagnostic_tests(band_dict, fill):
     '''
     Perform five diagnostic tests for each pixel using indexes
     and user-defined threshold values from thresholds.json.
@@ -78,15 +78,8 @@ def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
             to the unscaled surface reflectance bands (blue,
             green, red, nir, swir1, and swir2) and values as
             paths to those bands or files
-        mndwi : numpy array : Modified Normalized Difference
-            Wetness Index 
-        mbsrv : numpy array : Multi-band Spectral Relationship
-            Visible
-        mbsrn : numpy array : Multi-band Spectral Relationship
-            Near-Infrared
-        awesh : numpy array : Automated Water Extent Shadow
-        ndvi : numpy array : Normalized Difference Vegetation
-            Index
+        fill : int : value of non-data (fill) pixels in the
+            above bands
     RETURNS:
         diag : numpy array : (n by m by 5) boolean array;
             third dimension contains boolean results for the
@@ -105,7 +98,8 @@ def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
     pswt_2_nir = thresholds_dict['PSWT_2_NIR']
     pswt_2_swir1 = thresholds_dict['PSWT_2_SWIR1']
     pswt_2_swir2 = thresholds_dict['PSWT_2_SWIR2']
-
+    
+    mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(band_dict, fill)
     # get bands as np arrays
     blue = utils.file_to_array(band_dict['blue'])
     nir = utils.file_to_array(band_dict['nir'])
@@ -114,38 +108,37 @@ def diagnostic_tests(band_dict, mndwi, mbsrv, mbsrn, awesh, ndvi):
     
     # all bands are the same shape
     shape = blue.shape
-
+    
     # test 1 : compare MNDWI to WIGT Wetness Index threshold
     test1 = np.full(shape, False, dtype=bool)
     test1[mndwi > wigt] = True
-
+    
     # test 2 : compare MBSRV and MBSRN values to each other
     test2 = np.full(shape, False, dtype=bool)
     test2[mbsrv > mbsrn] = True
-
+    
     # test 3 : compare AWESH to AWGT Automated Water Extent
         # Shadow threshold
     test3 = np.full(shape, False, dtype=bool)
     test3[awesh > awgt] = True
-
+    
     # test 4 : compare MNDWI and NDVI along with NIR and SWIR
         # bands to the Partial Surface Water Test 1 thresholds
     test4 = np.full(shape, False, dtype=bool)
-    test4[(mndwi > pswt_1_mndwi) & 
+    test4[(mndwi > pswt_1_mndwi) &
             (swir1 < pswt_1_swir1) &
             (nir < pswt_1_nir) &
             (ndvi < pswt_1_ndvi)] = True
-
-    # test 5 : compare the MNDWI along with Blue, NIR, SWIR1,
-        # and SWIR2 bands to the Partial Surface Water Test 2
-        # thresholds
+    
+    # test 5 : compare the MNDWI and Blue, NIR, SWIR1, and SWIR2
+        # bands to Partial Surface Water Test 2 thresholds
     test5 = np.full(shape, False, dtype=bool)
-    test5[(mndwi > pswt_2_mndwi) & 
+    test5[(mndwi > pswt_2_mndwi) &
             (blue < pswt_2_blue) &
             (swir1 < pswt_2_swir1) &
             (swir2 < pswt_2_swir2) &
             (nir < pswt_1_nir)] = True
-
+    
     # stack the results together (each pixel has 5
         # corresponding bools)
     diag = np.stack((test1, test2, test3, test4, test5), axis=-1)
@@ -212,6 +205,84 @@ def recode_to_interpreted(diag, fill_array):
     return intr
 
 
+def mask_interpreted(intr, slope, shade, band_dict):
+    '''
+    Filter the interpreted band results with the percent slope,
+    hillshade, and pixel QA bands.
+    INPUTS:
+        intr : numpy array : (n by m) integer array; elements
+            correspond to DSWE interpreted classifications
+        slope : 
+        shade : 
+        band_dict : dict : dictionary with keys corresponding
+            to the unscaled surface reflectance bands and QA band
+            and values as paths to those bands or files
+    RETURNS:
+        inwm : numpy array : 
+        mask : numpy array :  
+    '''
+    # initialize arrays
+    inwm = intr.copy()
+    shape = intr.shape
+    mask = np.zeros(shape)
+    
+    # get pixel qa band
+    pixel_qa = utils.file_to_array(band_dict['pixel_qa'])
+    
+    # get threshold values needed for calculations
+    thresholds_dict = utils.get_thresholds()
+    slope_high = thresholds_dict['PERCENT_SLOPE_HIGH']
+    slope_moderate = thresholds_dict['PERCENT_SLOPE_MODERATE']
+    slope_wetland = thresholds_dict['PERCENT_SLOPE_WETLAND']
+    slope_low = thresholds_dict['PERCENT_SLOPE_LOW']
+    shade_threshold = thresholds_dict['HILLSHADE']
+    
+    # test 1 : compare percent slope band to thresholds;
+        # remove terrain too sloped to hold water
+    check_high = (slope >= slope_high) & (intr == 1)
+    check_mod = (slope >= slope_moderate) & (intr == 2)
+    check_wetland = (slope >= slope_wetland) & (intr == 3)
+    check_low = (slope >= slope_low) & (intr == 4)
+        
+    inwm[check_high | check_mod | check_wetland | check_low] = 0
+    mask[check_high | check_mod | check_wetland | check_low] = 3
+    
+    # test 2 : compare hillshade band to threshold
+    check_shade = (shade <= shade_threshold)
+    inwm[check_shade] = 0
+    mask[check_shade] = 4
+    
+    # test 3 : check if cloud (bit 1), cloud shadow (bit 3),
+        # and/or snow (bit 4) are set
+    check_cloud = (pixel_qa & (1 << 1)) != 0
+    check_shadow = (pixel_qa & (1 << 3)) != 0
+    check_snow = (pixel_qa & (1 << 4)) != 0
+    
+    inwm[check_cloud | check_shadow | check_snow] = 9
+    mask[check_shadow] = 0
+    mask[check_snow] = 1
+    mask[check_cloud] = 2
+    
+    return inwm, mask
+
+
+def hillshade(dem_clip, output_subdir, altitude, azimuth):
+    '''
+    Calculate hillshade using clipped DEM and solar geometry.
+    INPUTS:
+        dem_clip : 
+        output_subdir : 
+        altitude : 
+        azimuth : 
+    RETURNS:
+        shade : 
+    '''
+    shade_out = os.path.join(output_subdir, 'SHADE.tif')
+    shade = gdal.DEMProcessing(shade_out, dem_clip, 'hillshade',
+            format='GTiff', azimuth=azimuth, altitude=altitude)
+    return shade
+
+
 def main(input_dir, output_dir, include_tests, verbose):
     '''
     DSWE algorithm implemented to support either Harmonized
@@ -238,8 +309,7 @@ def main(input_dir, output_dir, include_tests, verbose):
                 if os.path.isfile(f)]
 
     for i, filename in enumerate(files):
-        if verbose:
-            print(f'Processing file {i+1} of {len(files)}')
+        log(f'Processing file {i+1} of {len(files)}')
 
         # create output subdirectory (same name as input file)
         subdir_name = os.path.splitext(filename)[0] # remove extension
@@ -247,12 +317,13 @@ def main(input_dir, output_dir, include_tests, verbose):
         output_subdir = os.path.join(output_dir, subdir_name)
         os.makedirs(output_subdir, exist_ok=True)
 
-        # check if file is HDF4 (or tar.gz)
+        # check if file is HDF4 or TAR
         with open(filename, 'rb') as f:
             magic_string = f.read(4)
         if magic_string == b'\x0e\x03\x13\x01':
             # this is a HDF4 file
             all_bands = utils.hdf_bands(filename)
+            altitude, azimuth = utils.hdf_solar(metadata)
         elif tarfile.is_tarfile(filename):
             # this is a tar file
             unpack_subdir = os.path.join(input_dir, subdir_name)
@@ -261,26 +332,15 @@ def main(input_dir, output_dir, include_tests, verbose):
         else:
             raise Exception('Unknown file format. Make sure input files are either HDF4 or TAR files.')
 
-        if verbose:
-            print('Assigning DSWE bands')
-        # assign each DSWE band
+        log('Assigning DSWE bands')
         band_dict, geo_transform, projection = utils.assign_bands(all_bands)
-
-        # get no-data (fill) value of bands and make fill
-            # array for all bands
         fill, fill_array = utils.get_fill_array(band_dict)
 
-        if verbose:
-            print('Performing diagnostic tests')
-        # calculate indexes for diagnostic tests
-        mndwi, mbsrv, mbsrn, awesh, ndvi = diagnostic_setup(band_dict, fill)
-        # perform diagnostic tests
-        diag = diagnostic_tests(band_dict, mndwi, mbsrv,
-                                    mbsrn, awesh, ndvi)
+        log('Performing diagnostic tests')
+        diag = diagnostic_tests(band_dict, fill)
 
-        if include_tests: # save diagnostic tests
-            if verbose:
-                print('Saving diagnostic layer')
+        if include_tests:
+            log('Saving diagnostic layer')
             # convert bools to int (does not preserve leading zeros)
             diag_list = diag.astype(int).tolist()
             diag_int = [sum(d*10**i for i, d in enumerate(lst[::-1]))
@@ -294,30 +354,50 @@ def main(input_dir, output_dir, include_tests, verbose):
             utils.save_output_tiff(diag_save, diag_filename,
                                         geo_transform, projection)
 
-        if verbose:
-            print('Recoding diagnostic layer to interpreted DSWE')
-
-        # recode to interpreted DSWE
+        log('Recoding diagnostic layer to interpreted DSWE')
         intr = recode_to_interpreted(diag, fill_array)
 
-        if verbose:
-            print('Saving interpreted layer')
-        # save interpreted layer
+        log('Saving interpreted layer')
         intr_filename = os.path.join(output_subdir, subdir_name + '_INTR.tif')
         utils.save_output_tiff(intr, intr_filename,
                                     geo_transform, projection)
 
+
+        ## only do if DEM is provided by user
+
+        log('Calculating hillshade')
+        shade = hillshade(dem_clip, output_subdir, altitude, azimuth)
+        if include_hs:
+            log('Saveing hillshade')
+            shade_filename = os.path.join(output_subdir, subdir_name + '_SHADE.tif')
+            utils.save_output_tiff(shade, shade_filename, geo_transform, projection)
+
+        log('Calculating mask and masked interpreted layer')
+        inwm, mask = mask_interpreted(intr, slope, shade, band_dict)
+
+        log('Saving interpreted layer with mask')
+        inwm_filename = os.path.join(output_subdir, subdir_name + '_INWM.tif')
+        utils.save_output_tiff(inwm, inwm_filename, geo_transform, projection)
+
+        log('Saving mask')
+        mask_filename = os.path.join(output_subdir, subdir_name + '_MASK.tif')
+        utils.save_output_tiff(mask, mask_filename, geo_transform, projection)
+    log('Done')
+
+verbose = False
+def log(print_str):
+    global verbose
     if verbose:
-        print('Done')
+        print(print_str)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
+parser = argparse.ArgumentParser(
                 description=('DSWE algorithm implemented to '
                 'support either Harmonized Landsat Sentinel '
-                '(HLS) or Landsat data as inputs. This version '
-                'does not calculate the masked layers, and does '
-                'not rely on a global DEM as input.'))
+                '(HLS) or Landsat data as inputs. If no DEM is '
+                'provided by the user, masked DSWE layers will '
+                'not be calculated.'))
     parser.add_argument('input_dir',
             metavar='INPUT_DIRECTORY',
             type=str,
@@ -328,15 +408,37 @@ if __name__ == '__main__':
             metavar='OUTPUT_DIRECTORY',
             type=str,
             help='output directory to save files')
+    parser.add_argument('--dem',
+            metavar='PATH_TO_DEM',
+            type=str,
+            help='path to DEM, which is larger than and covers the study area; if not supplied, masked DSWE layers will not be calculated')
     # options from documentation
     parser.add_argument('--include_tests',
             dest='include_tests',
             action='store_true',
-            help='if flagged, save results of diagnostic tests to a file')
-    parser.add_argument('--verbose',
-            dest='verbose',
+            help=('if flagged, save results of diagnostic '
+                    'tests to a file'))
+    parser.add_argument('--include_ps',
+            dest='include_ps',
             action='store_true',
-            help='if flagged, show print messages while code runs')
+            help='if flagged, save percent slope to a file')
+    parser.add_argument('--include_hs',
+            dest='include_hs',
+            action='store_true',
+            help=('if flagged, save hillshade (shaded relief) '
+                    'to a file'))
+    parser.add_argument('--use_zeven_thorne',
+            dest='use_zeven_thorne',
+            action='store_true',
+            help=('if flagged, use Zevenbergen and Thorne\'s '
+                    'slope algorithm; otherwise, defaults to '
+                    'Horn\'s slope algorithm'))
+    parser.add_argument('--verbose',
+            dest='verbose', 
+            action='store_true',
+            help=('if flagged, show print messages while '
+                    'code runs'))
 
     args = parser.parse_args()
+    verbose = args.verbose
     main(**vars(args))

@@ -21,7 +21,7 @@ def hdf_bands(filename):
     return all_bands
 
 
-def tar_bands(filename, output_subdir):
+def tar_bands(filename, unpack_subdir):
     '''
     Untar and get paths to all bands in a TAR file.
     INPUTS:
@@ -31,8 +31,8 @@ def tar_bands(filename, output_subdir):
     RETURNS:
         all_bands : list of str : list of paths to each band
     '''
-    untar(filename, output_subdir)
-    all_bands = [f.path for f in os.scandir(output_subdir)
+    untar(filename, unpack_subdir)
+    all_bands = [f.path for f in os.scandir(unpack_subdir)
                         if os.path.isfile(f)]
     return all_bands
 
