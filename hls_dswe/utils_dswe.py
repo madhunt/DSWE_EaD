@@ -21,6 +21,8 @@ def hdf_bands(filename):
     bands_info = data.GetSubDatasets()
     all_bands = [band[0] for band in bands_info]
     return all_bands, metadata
+
+
 def hdf_solar(metadata):
     '''
     Gets solar azimuth and altitude from HLS file metadata.
@@ -35,14 +37,21 @@ def hdf_solar(metadata):
     zenith_search = 'MEAN_SUN_ZENITH_ANGLE'
     
     # search metadata
-    azimuth = [val for key, val in metadata.items()
+    azimuth_str = [val for key, val in metadata.items()
                     if azimuth_search in key][0]
-    zenith = [val for key, val in metadata.items()
+    zenith_str = [val for key, val in metadata.items()
                     if zenith_search in key][0]
+
+    # fix for case where there are sometimes multiple numbers
+    azimuth_list = azimuth_str.replace(' ', '').split(',')
+    zenith_list = zenith_str.replace(' ', '').split(',')
+
+    azimuth_float = [float(i) for i in azimuth_list]
+    zenith_float = [float(i) for i in zenith_list]
     
-    # convert from strings to floats
-    azimuth = float(azimuth)
-    zenith = float(zenith)
+    # take the average if multiple numbers
+    azimuth = sum(azimuth_float) / len(azimuth_float)
+    zenith = sum(zenith_float) / len(zenith_float)
     altitude = 90.0 - zenith
     return azimuth, altitude
 

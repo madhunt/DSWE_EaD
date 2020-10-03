@@ -357,7 +357,8 @@ def main(input_dir, output_dir, dem_path, include_tests,
         if magic_string == b'\x0e\x03\x13\x01':
             # this is a HDF4 file
             all_bands, metadata = utils.hdf_bands(filename)
-            altitude, azimuth = utils.hdf_solar(metadata)
+            if dem_path:
+                altitude, azimuth = utils.hdf_solar(metadata)
         elif tarfile.is_tarfile(filename):
             # this is a tar file
             unpack_subdir = os.path.join(input_dir, subdir_name)
