@@ -17,5 +17,4 @@ The DSWE algorithm was written in Python, and this code was generalized to take 
 It will run either without a user-supplied DEM (returning only DSWE layers without masking) or with a user-supplied DEM larger than the study area (returning all DSWE layers with and without masking).
 
 ## Questions?
-Feel free to email me with any questions. If there are any major bugs, please email me or make them into an issue, and I'll check back periodically to see if there's anything I can fix or explain.
-
+If there are any major bugs, please email me or make them into an issue. Also feel free to reach out if there are any questions.
